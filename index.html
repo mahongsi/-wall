@@ -1,0 +1,3779 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>墙隙试验 B-09 · W-GATE 模拟恐怖实测档案</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+  :root { --hud-border: rgba(168, 198, 178, 0.28); --crt-green: #8ce6a2; --crt-amber: #ebb45e; --crt-red: #e84a4a; --crt-cyan: #6edff6; --paper-bg: #dbd4c1; --paper-dark: #c7beaa; --ink-main: #1d201d; --ink-red: #8c2323; --ink-pen: #1e3b6e; }
+  * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #060807; color: #d8e0da; font-family: "Courier New", "Consolas", "Noto Serif SC", "PingFang SC", "Microsoft YaHei", monospace; touch-action: none; }
+  #game-wrap { position: relative; width: 100%; height: 100%; overflow: hidden; background: #050706; }
+  #gl-canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; cursor: crosshair; }
+  .vhs-frame { position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.68); z-index: 5; }
+  #blackout-curtain { position: absolute; inset: 0; background: #020302; opacity: 0; pointer-events: none; z-index: 35; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  #monologue-text { color: #e8ecea; font-family: "Noto Serif SC", "Songti SC", "SimSun", serif; font-size: clamp(16px, 2.4vw, 22px); letter-spacing: 2.5px; line-height: 1.8; text-align: center; min-height: 36px; }
+  .term-code-panel { margin-top: 12px; padding: 10px 12px; background: rgba(18, 32, 22, 0.85); border: 1px solid rgba(140, 230, 162, 0.35); display: none; flex-direction: column; gap: 10px; }
+  .term-code-panel.visible { display: flex; }
+  .term-input-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: #a9d9b6; }
+  #term-code-input { width: 72px; background: rgba(6, 12, 8, 0.55); color: #8ce6a2; border: 1px solid rgba(140, 230, 162, 0.22); padding: 4px 6px; font-family: "Courier New", "Consolas", monospace; font-size: 14px; font-weight: bold; letter-spacing: 2.5px; text-align: center; outline: none; cursor: text; user-select: text; -webkit-user-select: text; }
+  #term-code-input:focus { border-color: #ffffff; box-shadow: 0 0 8px rgba(140, 230, 162, 0.45); }
+  #term-maxpower-box { display: none; padding: 9px 10px; background: rgba(48, 28, 10, 0.72); border: 1px solid rgba(235, 180, 94, 0.65); color: #ffdca0; font-size: 12.5px; line-height: 1.6; }
+  #term-maxpower-box.visible { display: block; }
+  #hud-top { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; z-index: 10; pointer-events: none; }
+  .telemetry-unit { display: flex; align-items: stretch; gap: 10px; background: linear-gradient(180deg, rgba(14, 19, 17, 0.90) 0%, rgba(8, 11, 10, 0.88) 100%); border: 1px solid var(--hud-border); padding: 8px 10px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.04); position: relative; }
+  .telemetry-unit::before, .telemetry-unit::after { content: ""; position: absolute; width: 7px; height: 7px; border-color: rgba(140, 230, 162, 0.55); border-style: solid; }
+  .telemetry-unit::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+  .telemetry-unit::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+  .radar-wrap { position: relative; width: 88px; height: 88px; background: #060b08; border: 1px solid rgba(140, 230, 162, 0.32); flex-shrink: 0; overflow: hidden; }
+  #minimap-canvas { display: block; width: 88px; height: 88px; image-rendering: pixelated; }
+  .radar-caption { position: absolute; bottom: 2px; left: 4px; right: 4px; display: flex; justify-content: space-between; font-size: 9px; color: rgba(168, 205, 180, 0.68); pointer-events: none; letter-spacing: 0.4px; }
+  .telemetry-readout { display: flex; flex-direction: column; justify-content: space-between; min-width: 205px; font-size: 11.5px; line-height: 1.4; }
+  .tel-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid rgba(168, 198, 178, 0.16); padding-bottom: 4px; font-size: 11px; color: #b7c8bc; }
+  .rec-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #e83a3a; box-shadow: 0 0 6px #e83a3a; margin-right: 5px; animation: blinkRec 1.2s steps(2, start) infinite; }
+    @keyframes blinkRec {
+  0%, 62% { opacity: 1; }
+  63%, 100% { opacity: 0.16; }
+    }
+  .tel-grid { display: grid; grid-template-columns: auto auto; column-gap: 12px; row-gap: 3px; margin: 5px 0; }
+  .tel-item { color: #8fa395; font-size: 11px; }
+  .tel-val { color: #e4efe7; font-weight: bold; }
+  .seg-bar { display: inline-flex; gap: 2px; vertical-align: middle; margin-left: 4px; }
+  .seg-bar i { display: inline-block; width: 6px; height: 8px; background: rgba(140, 230, 162, 0.16); border: 1px solid rgba(140, 230, 162, 0.25); }
+  .seg-bar i.on { background: var(--crt-cyan); border-color: var(--crt-cyan); }
+  .seg-bar i.warn { background: var(--crt-amber); border-color: var(--crt-amber); }
+  #objective-strip { font-size: 11px; color: var(--crt-amber); background: rgba(235, 180, 94, 0.08); border-left: 2px solid var(--crt-amber); padding: 2px 6px; max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hud-controls-bar { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; pointer-events: auto; }
+  .hud-btn { background: rgba(12, 17, 15, 0.88); color: #c9dbd0; border: 1px solid rgba(168, 198, 178, 0.28); padding: 6px 10px; font-family: inherit; font-size: 11.5px; cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; position: relative; }
+  .hud-btn:hover { background: rgba(28, 44, 35, 0.94); border-color: var(--crt-green); color: #ffffff; }
+  .hud-btn.active { background: rgba(140, 230, 162, 0.18); border-color: var(--crt-green); color: var(--crt-green); }
+  .hud-btn.notify::after { content: ""; position: absolute; top: -3px; right: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--crt-amber); box-shadow: 0 0 8px var(--crt-amber); animation: blinkRec 0.8s infinite; }
+  #reticle-wrap { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  #reticle { width: 14px; height: 14px; position: relative; opacity: 0.72; transition: transform 0.12s, opacity 0.12s; }
+  #reticle::before, #reticle::after { content: ""; position: absolute; background: #e6f2ea; box-shadow: 0 0 3px rgba(0, 0, 0, 0.9); }
+  #reticle::before { top: 6px; left: 2px; width: 10px; height: 2px; }
+  #reticle::after { left: 6px; top: 2px; width: 2px; height: 10px; }
+  #reticle.portal-ready { opacity: 0.95; transform: scale(1.18); }
+  #reticle.override-ready { opacity: 1; transform: scale(1.28) rotate(45deg); filter: drop-shadow(0 0 5px #ff4b6e); }
+  #aim-prompt { font-size: 11px; letter-spacing: 1px; color: rgba(235, 228, 208, 0.92); background: rgba(12, 14, 13, 0.62); border: 1px solid rgba(219, 212, 193, 0.28); padding: 1px 6px; opacity: 0; transition: opacity 0.12s; }
+  #aim-prompt.visible { opacity: 1; }
+  #subtitle-bar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); width: min(800px, calc(100% - 24px)); background: rgba(7, 9, 8, 0.90); border: 1px solid rgba(235, 180, 94, 0.36); border-left: 3px solid var(--crt-amber); padding: 9px 14px; z-index: 12; pointer-events: none; opacity: 0; transition: opacity 0.25s ease; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.8); }
+  #subtitle-bar.active { opacity: 1; }
+  #subtitle-bar.hijacked { border-color: rgba(232, 74, 74, 0.65); border-left-color: var(--crt-red); }
+  .sub-header { display: flex; align-items: center; justify-content: space-between; font-size: 10.5px; color: var(--crt-amber); margin-bottom: 3px; letter-spacing: 0.8px; }
+  #subtitle-bar.hijacked .sub-header { color: var(--crt-red); }
+  .wave-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 9px; margin-left: 7px; }
+  .wave-bars span { display: block; width: 2px; height: 3px; background: currentColor; animation: wavePulse 0.35s infinite alternate; }
+  .wave-bars span:nth-child(2) { animation-delay: 0.1s; }
+  .wave-bars span:nth-child(3) { animation-delay: 0.2s; }
+  .wave-bars span:nth-child(4) { animation-delay: 0.05s; }
+    @keyframes wavePulse {
+  from { height: 2px; }
+  to { height: 9px; }
+    }
+  #subtitle-text { font-size: 13.5px; line-height: 1.55; color: #f0f2ec; text-shadow: 0 1px 2px #000; }
+  .paper-backdrop { position: absolute; inset: 0; background: rgba(4, 6, 5, 0.66); z-index: 26; display: none; align-items: center; justify-content: center; padding: 16px; }
+  .paper-backdrop.open { display: flex; }
+  .manual-booklet { width: min(600px, 100%); max-height: 82vh; overflow-y: auto; background: radial-gradient(circle at 88% 14%, rgba(155, 138, 104, 0.22) 0%, transparent 38%), linear-gradient(180deg, var(--paper-bg) 0%, var(--paper-dark) 100%); color: var(--ink-main); border: 1px solid #8a816e; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.9), inset 0 0 0 4px rgba(255, 252, 242, 0.35); padding: 20px 22px; position: relative; font-family: "Noto Serif SC", "Songti SC", "SimSun", "Courier New", serif; }
+  .manual-stamp { position: absolute; top: 16px; right: 20px; border: 2px solid rgba(140, 35, 35, 0.72); color: rgba(140, 35, 35, 0.82); padding: 2px 7px; font-size: 11px; font-weight: bold; transform: rotate(-6deg); letter-spacing: 1px; pointer-events: none; }
+  .manual-org { font-size: 11px; color: #4c4940; letter-spacing: 1.2px; border-bottom: 2px solid var(--ink-red); padding-bottom: 6px; margin-bottom: 10px; }
+  .manual-heading { margin: 0 0 12px 0; font-size: 19px; color: #161816; letter-spacing: 1px; }
+  .manual-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; border-bottom: 1px solid #9d9480; padding-bottom: 10px; }
+  .manual-tab-btn { background: #c8bfa9; color: #2f2d28; border: 1px solid #8a816d; padding: 5px 10px; font-family: inherit; font-size: 12px; font-weight: bold; cursor: pointer; }
+  .manual-tab-btn:hover { background: #e7e0ce; }
+  .manual-tab-btn.active { background: #1f2421; color: #ece6d6; border-color: #1f2421; }
+  .manual-page-content { font-size: 13.5px; line-height: 1.78; color: #1e201d; min-height: 185px; }
+  .manual-page-content p { margin: 0 0 10px 0; }
+  .hidden-note-pencil { margin-top: 26px; text-align: right; padding-right: 8px; font-family: "KaiTi", "STKaiti", "FangSong", "Noto Serif SC", serif; font-style: italic; font-size: 11.5px; line-height: 1.5; color: rgba(74, 76, 72, 0.58); letter-spacing: 0.6px; transform: rotate(-1.3deg); }
+  .hidden-note-ballpoint { margin-top: 20px; margin-left: auto; max-width: 78%; font-family: "KaiTi", "STKaiti", "Noto Serif SC", serif; font-size: 12px; line-height: 1.45; color: rgba(24, 52, 108, 0.82); text-shadow: 0.4px 0.3px 0 rgba(24, 52, 108, 0.22); transform: rotate(1.6deg); }
+  .hidden-note-scratch { margin-top: 28px; padding-left: 4px; font-size: 11px; line-height: 1.55; letter-spacing: 1.6px; color: rgba(92, 85, 72, 0.46); text-shadow: 0 1px 0 rgba(255, 253, 246, 0.82), 0 -0.6px 0 rgba(42, 36, 28, 0.36); transform: rotate(-0.7deg); }
+  #intro-screen .dossier-sheet { background: linear-gradient(180deg, #fcfdfd 0%, #f2f4f6 100%); color: #111518; border: 1px solid #b8c2c8; box-shadow: 0 22px 64px rgba(0, 0, 0, 0.92), inset 0 0 0 4px #ffffff; font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "SimHei", sans-serif; }
+  #intro-screen .dossier-header { color: #394248; border-bottom: 2px solid #151b1f; font-family: "Courier New", "Consolas", monospace; }
+  #intro-screen .dossier-title { color: #0d1114; font-weight: 700; letter-spacing: 1px; }
+  #intro-screen .dossier-prose { color: #1c2226; }
+  #intro-screen .dossier-clause { background: #f5f7f8; border: 1px solid #cfd7dc; border-left: 3px solid #151b1f; color: #1a2024; }
+  #intro-screen .start-row { border-top: 1px solid #cfd7dc; }
+  #intro-screen .paper-btn { background: #141a1e; color: #f7f9fa; border: 1px solid #0b0e11; font-weight: bold; }
+  #intro-screen .paper-btn:hover { background: #263138; }
+  .strike-heavy { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: #2a1818; color: #625c50; margin: 0 2px; }
+  .smudge-mark { display: inline-block; background: rgba(35, 32, 28, 0.82); color: transparent; padding: 0 5px; border-radius: 1px; user-select: none; }
+  .hand-edit { display: inline-block; color: #6b1d1d; font-weight: bold; border-bottom: 1px dashed rgba(107, 29, 29, 0.55); transform: rotate(-6.5deg) translateY(-2px); letter-spacing: 3px; margin: 0 4px; }
+  .skew-note-wrap { padding: 10px 6px; overflow: hidden; }
+  .skew-line-1 { transform: rotate(-3.4deg) translateX(4px); letter-spacing: 2.5px; margin-bottom: 8px; }
+  .skew-line-2 { transform: rotate(-1.6deg) translateX(-3px); letter-spacing: 1.2px; word-spacing: 6px; margin-bottom: 10px; }
+  .skew-line-3 { transform: rotate(-4.8deg) translateX(7px); letter-spacing: 3.8px; margin-bottom: 9px; }
+  .skew-line-4 { transform: rotate(-2.7deg) translateX(2px); letter-spacing: 2.1px; }
+  .scattered-char { display: inline-block; }
+  .manual-footer { margin-top: 16px; padding-top: 10px; border-top: 1px dashed #8a816e; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 11.5px; color: #4f4b41; }
+  .paper-btn { background: #222724; color: #eae4d3; border: 1px solid #111; padding: 7px 14px; font-family: inherit; font-size: 12.5px; cursor: pointer; letter-spacing: 0.8px; }
+  .paper-btn:hover { background: #38423c; }
+  .paper-btn.danger { background: #6e1b1b; border-color: #4a0f0f; color: #f9e6e6; }
+  .paper-btn.danger:hover { background: #8f2424; }
+  #inspect-modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(510px, calc(100% - 28px)); max-height: 76vh; overflow-y: auto; background: radial-gradient(circle at 22% 28%, rgba(130, 112, 82, 0.22) 0%, transparent 45%), linear-gradient(180deg, #dad2be 0%, #c8bfa8 100%); color: #1c1f1c; border: 1px solid #7d7563; box-shadow: 0 16px 46px rgba(0, 0, 0, 0.88); padding: 18px 20px; z-index: 27; display: none; font-family: "Noto Serif SC", "Songti SC", "Courier New", serif; }
+  #inspect-modal.crt-style { background: rgba(9, 15, 11, 0.96); color: #c8e6cf; border: 2px solid #4d5951; box-shadow: 0 16px 46px rgba(0, 0, 0, 0.92), inset 0 0 24px rgba(140, 230, 162, 0.08); font-family: "Courier New", "Consolas", "PingFang SC", monospace; }
+  #inspect-modal.open { display: block; }
+  #inspect-title { font-size: 15px; font-weight: bold; border-bottom: 1px solid rgba(100, 95, 80, 0.45); padding-bottom: 7px; margin-bottom: 11px; }
+  #inspect-modal.crt-style #inspect-title { color: var(--crt-green); border-bottom-color: rgba(140, 230, 162, 0.3); }
+  #inspect-body { font-size: 13px; line-height: 1.74; white-space: pre-wrap; }
+  .inspect-actions { margin-top: 15px; display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+  .overlay-screen { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.28) 0px, rgba(0, 0, 0, 0.28) 1px, transparent 1px, transparent 3px), radial-gradient(circle at center, rgba(12, 18, 15, 0.65) 0%, rgba(4, 6, 5, 0.88) 85%); z-index: 40; display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
+  #ending-screen { display: none; background: #020302; opacity: 0; transition: opacity 0.95s ease; }
+  #ending-screen.visible { opacity: 1; }
+  .dossier-sheet { width: min(650px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; background: radial-gradient(circle at 15% 85%, rgba(145, 128, 96, 0.2) 0%, transparent 45%), linear-gradient(180deg, #ded7c5 0%, #cbc2ae 100%); color: #1b1d1b; border: 1px solid #7d7461; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.92), inset 0 0 0 5px rgba(255, 252, 244, 0.35); padding: 22px 26px; position: relative; font-family: "Noto Serif SC", "Songti SC", "SimSun", serif; }
+  .dossier-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 11.5px; color: #4b473e; border-bottom: 2px solid var(--ink-red); padding-bottom: 7px; margin-bottom: 14px; letter-spacing: 1px; }
+  .dossier-title { margin: 0 0 12px 0; font-size: clamp(18px, 2.8vw, 23px); color: #151715; letter-spacing: 1.2px; }
+  .dossier-prose { font-size: 13.5px; line-height: 1.75; color: #222522; margin-bottom: 14px; }
+  .dossier-prose p { margin: 0 0 10px 0; }
+  .dossier-clause { background: rgba(140, 35, 35, 0.06); border: 1px solid rgba(140, 35, 35, 0.35); border-left: 3px solid var(--ink-red); padding: 10px 13px; font-size: 12.5px; line-height: 1.68; color: #2b1d1d; margin-bottom: 16px; }
+  .archive-table { width: 100%; border-collapse: collapse; margin: 10px 0 16px 0; font-size: 13px; background: rgba(255, 252, 245, 0.42); }
+  .archive-table th, .archive-table td { border: 1px solid #8c8470; padding: 7px 10px; text-align: left; vertical-align: top; line-height: 1.58; }
+  .archive-table th { width: 122px; background: rgba(45, 42, 35, 0.09); color: #2d2b25; font-weight: bold; }
+  .seal-stamp { position: absolute; top: 58px; right: 28px; border: 3px double rgba(150, 28, 28, 0.78); color: rgba(150, 28, 28, 0.82); padding: 5px 11px; font-size: 14px; font-weight: bold; letter-spacing: 2px; transform: rotate(-9deg); pointer-events: none; background: rgba(222, 215, 197, 0.45); }
+  .start-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding-top: 8px; border-top: 1px solid #9e9581; }
+  #touch-ui { position: absolute; inset: 0; z-index: 11; pointer-events: none; display: none; }
+  #touch-ui.enabled { display: block; }
+  .dpad-cluster { position: absolute; left: 16px; bottom: 92px; width: 124px; height: 124px; pointer-events: auto; }
+  .t-btn { position: absolute; width: 39px; height: 39px; background: rgba(12, 18, 15, 0.74); border: 1px solid rgba(168, 198, 178, 0.38); color: #dff0e4; font-family: inherit; font-size: 14px; display: flex; align-items: center; justify-content: center; border-radius: 3px; cursor: pointer; }
+  .t-btn:active { background: rgba(140, 230, 162, 0.3); }
+  #t-up { left: 42px; top: 0; }
+  #t-down { left: 42px; bottom: 0; }
+  #t-left { left: 0; top: 42px; }
+  #t-right { right: 0; top: 42px; }
+  .action-cluster { position: absolute; right: 16px; bottom: 94px; display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
+  .act-btn { background: rgba(12, 20, 22, 0.82); border: 1px solid rgba(110, 223, 246, 0.45); color: #daf6fc; padding: 8px 12px; font-family: inherit; font-size: 12px; border-radius: 3px; cursor: pointer; }
+    @media (max-width: 680px) {
+  .radar-wrap, #minimap-canvas { width: 72px; height: 72px; }
+  .telemetry-readout { min-width: 155px; }
+  #objective-strip { max-width: 195px; }
+  #subtitle-text { font-size: 12.5px; }
+    }
+  </style>
+</head>
+<body>
+<div id="game-wrap">
+  <canvas id="gl-canvas"></canvas>
+  <div class="vhs-frame"></div>
+  <div id="blackout-curtain"><div id="monologue-text"></div></div>
+  <div id="hud-top">
+    <div class="telemetry-unit">
+      <div class="radar-wrap" title="B-09 室内生物电定位仪（白点：受试员 / 红点：未知相位源）">
+        <canvas id="minimap-canvas" width="88" height="88"></canvas>
+        <div class="radar-caption">
+          <span>N▲</span>
+          <span id="radar-ping-label">BIO:01</span>
+        </div>
+      </div>
+      <div class="telemetry-readout">
+        <div class="tel-header">
+          <span><span class="rec-dot"></span><span id="hud-cam-id">E-4092 · B09舱</span></span>
+          <span id="hud-clock-str">02:14:09</span>
+        </div>
+        <div class="tel-grid">
+          <div class="tel-item">折叠进度 <span class="tel-val" id="hud-cycle">00/07</span></div>
+          <div class="tel-item">信号偏移 <span class="tel-val" id="hud-corrupt">0%</span></div>
+          <div class="tel-item" style="grid-column: span 2;">
+            序列指示 <span class="seg-bar" id="hud-seg-bar">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </span>
+            &nbsp;|&nbsp; 频谱：<span class="tel-val" id="hud-emf" style="color:#8ce6a2;">平稳</span>
+          </div>
+        </div>
+        <div id="objective-strip">广播待命：等待进入试验室…</div>
+      </div>
+    </div>
+    <div class="hud-controls-bar">
+      <button type="button" class="hud-btn" id="btn-briefing-help" title="翻阅随身《员工守则》(Tab / H)">员工守则 [Tab]</button>
+      <button type="button" class="hud-btn" id="btn-flashlight" title="头盔照明灯 (L)">照明 [L]: 关</button>
+      <button type="button" class="hud-btn" id="btn-touch-toggle" title="触屏虚拟按键">触控</button>
+      <button type="button" class="hud-btn active" id="btn-audio-toggle" title="音频开关 (M)">音频 [M]: 开</button>
+    </div>
+  </div>
+  <div id="reticle-wrap">
+    <div id="reticle"></div>
+    <div id="aim-prompt"></div>
+  </div>
+  <div id="touch-ui">
+    <div class="dpad-cluster">
+      <button type="button" class="t-btn" id="t-up">▲</button>
+      <button type="button" class="t-btn" id="t-left">◀</button>
+      <button type="button" class="t-btn" id="t-right">▶</button>
+      <button type="button" class="t-btn" id="t-down">▼</button>
+    </div>
+    <div class="action-cluster">
+      <button type="button" class="act-btn" id="t-portal">展开裂隙 [F]</button>
+      <button type="button" class="act-btn" id="t-interact">调查 / 校准 [E]</button>
+      <button type="button" class="act-btn" id="t-manual">员工守则</button>
+    </div>
+  </div>
+  <div id="subtitle-bar">
+    <div class="sub-header">
+      <span>
+        🔊 <span id="sub-speaker-label">设施扩音喇叭 · B-09主控室</span>
+        <span class="wave-bars"><span></span><span></span><span></span><span></span></span>
+      </span>
+      <span id="sub-channel-tag">CH-04 内部广播</span>
+    </div>
+    <div id="subtitle-text"></div>
+  </div>
+  <div class="paper-backdrop" id="manual-modal">
+    <div class="manual-booklet">
+      <div class="manual-stamp">受试员随身件<br />#E-4092</div>
+      <div class="manual-org">恒界空间科技 · B-09 单层密封试验栋内部印刷品</div>
+      <h3 class="manual-heading">《W-Gate 墙面测试员现场操作守则》</h3>
+      <div class="manual-tabs">
+        <button type="button" class="manual-tab-btn active" data-tab="0">§1 设备与按键</button>
+        <button type="button" class="manual-tab-btn" data-tab="1">§2 墙面折叠须知</button>
+        <button type="button" class="manual-tab-btn" data-tab="2">§3 残像处置条例</button>
+        <button type="button" class="manual-tab-btn" data-tab="3" id="manual-tab-secret">§4 附页备忘</button>
+      </div>
+      <div class="manual-page-content" id="manual-page-body"></div>
+      <div class="manual-footer">
+        <span>提示：试验期间请留意广播指引，随时按 [Tab] 或 [H] 核对本手册</span>
+        <button type="button" class="paper-btn" id="btn-manual-close">合上手册 [Tab / Esc]</button>
+      </div>
+    </div>
+  </div>
+  <div id="inspect-modal">
+    <div id="inspect-title">巡检记录</div>
+    <div id="inspect-body"></div>
+    <div class="term-code-panel" id="term-code-panel">
+      <div class="term-input-row">
+        <label for="term-code-input">校准授权码：</label>
+        <input type="text" id="term-code-input" value="4092" maxlength="4" autocomplete="off" spellcheck="false" />
+        <button type="button" class="paper-btn danger" id="btn-override-trigger">改变发射器极性</button>
+      </div>
+      <div id="term-status-hint" style="font-size:11.5px;color:#7ca688;min-height:16px;"></div>
+      <div id="term-maxpower-box">
+        <div style="margin-bottom:8px;">⚡ 根权限校验通过 [3062]：检出高压冗余电容。<strong>是否以最大功率输出？</strong></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="paper-btn danger" id="btn-maxpower-yes">是：以最大功率输出</button>
+          <button type="button" class="paper-btn" id="btn-maxpower-no">否：常规逆相输出</button>
+        </div>
+      </div>
+    </div>
+    <div class="inspect-actions">
+      <button type="button" class="paper-btn" id="btn-open-term-port" style="display:none;background:#19281e;color:#98cfa6;border-color:#3d5c47;">底层极性校准槽</button>
+      <button type="button" class="paper-btn" id="btn-inspect-close">放下 [E / Space]</button>
+    </div>
+  </div>
+  <div class="overlay-screen" id="intro-screen">
+    <div class="dossier-sheet">
+      <div class="dossier-header">
+        <span>恒界空间科技 · 人事调派令 FORM-B09</span>
+        <span>签发日期：1998.11.24 02:10</span>
+      </div>
+      <h1 class="dossier-title">《新产品夜间实测派遣单 · 工号 E-4092》</h1>
+      <div class="dossier-prose">
+        <p>兹指派底层测试专员 <strong>#E-4092</strong> 进入地下单层全封闭混凝土试验栋 <strong>B-09</strong>，协助完成新产品 <strong>【W-Gate 墙面拓扑传送门】</strong> 的出厂穿行测试。</p>
+        <p>本试验建筑四周均为实心承重墙体，无外窗及侧门。入舱后防爆门将从外部落锁，请您手持配发的【裂隙展开器】，以视线准星为中线在指定墙面展开传送门，直接穿过墙体前往墙壁另一侧，并按舱内顶部喇叭广播的要求完成 <strong>7 轮校准测试</strong>。</p>
+      </div>
+      <div class="dossier-clause">
+        <strong>入舱前必读事项：</strong><br />
+        一、受拓扑折叠特性影响，<strong>墙壁另一侧的建筑内部应与您所在房间完全一致</strong>。<br />
+        二、操作细则、左上角生物电雷达说明等均已印制于您随身携带的<strong>《员工守则》</strong>（入舱后可按 <strong>Tab</strong> 或 <strong>H</strong> 随时翻阅），请配合广播指引查阅。<br />
+        三、基本行动：<strong>WASD</strong> 移动，<strong>鼠标移动或拖拽</strong> 转向，<strong>左键 / F</strong> 沿视线中线展开传送门，<strong>E</strong> 调查设施与储物柜，<strong>L</strong> 开启头盔照明。
+      </div>
+      <div class="start-row">
+        <span style="font-size:12px;color:#4a545b;">受试人签字：E-4092（指纹已归档）</span>
+        <button type="button" class="paper-btn" id="btn-start-game">[ 领用《员工守则》并进入 B-09 测试舱 ]</button>
+      </div>
+    </div>
+  </div>
+  <div class="overlay-screen" id="ending-screen">
+    <div class="dossier-sheet">
+      <div class="seal-stamp" id="end-seal-stamp">归档留舱</div>
+      <div class="dossier-header">
+        <span id="end-badge-left">恒界空间科技 · 人事封存卷宗</span>
+        <span id="end-badge-right">卷宗号：HR-98-4092</span>
+      </div>
+      <h2 class="dossier-title" id="end-title">《B-09 受试员工人事归档表》</h2>
+      <div id="end-desc"></div>
+      <div class="start-row">
+        <span style="font-size:12px;color:#524d42;" id="end-stats"></span>
+        <button type="button" class="paper-btn" id="btn-restart-game">[ 重新调阅 B-09 试验监控母带 ]</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const lambert = (o) => new THREE.MeshLambertMaterial(o);
+  const basic = (o) => new THREE.MeshBasicMaterial(o);
+  const boxGeo = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+  const planeGeo = (w, h) => new THREE.PlaneGeometry(w, h);
+  const cylGeo = (rt, rb, h, s) => new THREE.CylinderGeometry(rt, rb, h, s);
+  const mkBox = (w, h, d, mat, x = 0, y = 0, z = 0, p = null) => {
+    const m = new THREE.Mesh(boxGeo(w, h, d), mat);
+    m.position.set(x, y, z);
+    if (p) p.add(m);
+    return m;
+  };
+  const mkPlane = (w, h, mat, x = 0, y = 0, z = 0, rx = 0, ry = 0, p = null) => {
+    const m = new THREE.Mesh(planeGeo(w, h), mat);
+    m.position.set(x, y, z);
+    if (rx || ry) m.rotation.set(rx, ry, 0);
+    if (p) p.add(m);
+    return m;
+  };
+  const fRect = (ctx, col, x, y, w, h) => { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); };
+  const canvas = $('gl-canvas'), wrapEl = $('game-wrap'), blackoutCurtain = $('blackout-curtain');
+  const minimapCanvas = $('minimap-canvas'), minimapCtx = minimapCanvas.getContext('2d'), radarPingLabel = $('radar-ping-label');
+  const introScreen = $('intro-screen'), endingScreen = $('ending-screen'), manualModal = $('manual-modal'), manualPageBody = $('manual-page-body'), btnManualClose = $('btn-manual-close');
+  const monologueText = $('monologue-text'), inspectModal = $('inspect-modal'), inspectTitle = $('inspect-title'), inspectBody = $('inspect-body');
+  const termCodePanel = $('term-code-panel'), termCodeInput = $('term-code-input'), termStatusHint = $('term-status-hint'), termMaxpowerBox = $('term-maxpower-box');
+  const btnMaxpowerYes = $('btn-maxpower-yes'), btnMaxpowerNo = $('btn-maxpower-no'), btnOpenTermPort = $('btn-open-term-port'), btnOverrideTrigger = $('btn-override-trigger'), btnInspectClose = $('btn-inspect-close');
+  const btnStartGame = $('btn-start-game'), btnRestartGame = $('btn-restart-game'), btnFlashlight = $('btn-flashlight'), btnTouchToggle = $('btn-touch-toggle'), btnAudioToggle = $('btn-audio-toggle'), btnBriefingHelp = $('btn-briefing-help'), touchUi = $('touch-ui');
+  const hudCycle = $('hud-cycle'), hudCorrupt = $('hud-corrupt'), hudEmf = $('hud-emf'), hudClockStr = $('hud-clock-str'), hudCamId = $('hud-cam-id'), hudSegBar = $('hud-seg-bar'), objectiveStrip = $('objective-strip');
+  const reticleEl = $('reticle'), aimPromptEl = $('aim-prompt');
+  const subtitleBar = $('subtitle-bar'), subtitleText = $('subtitle-text'), subSpeakerLabel = $('sub-speaker-label'), subChannelTag = $('sub-channel-tag');
+  const endTitle = $('end-title'), endDesc = $('end-desc'), endStats = $('end-stats'), endBadgeRight = $('end-badge-right'), endSealStamp = $('end-seal-stamp');
+  const ROOM_HALF = 6.0;
+  const ROOM_H = 3.8;
+  const WALL_THICK = 2.15;
+  const NEXT_DIST = ROOM_HALF * 2 + WALL_THICK;
+  const PORTAL_W = 2.0;
+  const PORTAL_H = 2.68;
+  const WIN_LOCAL_X = 4.1;
+  const WIN_W = 1.88;
+  const WIN_H = 1.20;
+  const WIN_CENTER_Y = 1.78;
+  const WALL_META = {
+    N: { label: '北侧墙 N-01', code: 'N-01', nx: 0, nz: -1, tx: 1, tz: 0, opp: 'S', rotY: 0 },
+    S: { label: '南侧墙 S-03', code: 'S-03', nx: 0, nz: 1, tx: -1, tz: 0, opp: 'N', rotY: Math.PI },
+    E: { label: '东侧墙 E-02', code: 'E-02', nx: 1, nz: 0, tx: 0, tz: 1, opp: 'W', rotY: -Math.PI / 2 },
+    W: { label: '西侧墙 W-04', code: 'W-04', nx: -1, nz: 0, tx: 0, tz: -1, opp: 'E', rotY: Math.PI / 2 }
+  };
+  const SHADOW_SPOTS = [[-4.4,-4.4],[4.4,-4.4],[-4.5,4.3],[4.4,4.3],[-4.7,0],[4.7,0],[0,4.6],[0,-4.6]].map(([x,z]) => ({ x, z }));
+  const CYCLE_CONFIG = [
+    ['N', false, 0,    0.00, 0.012, 0.022, 1.00, 0.016, 0, false, false, '按 [Tab] 核对守则 §1 后，在北侧墙展开传送门', '“滋——测试员 4092，防爆门已落锁。首次操作前可按 [Tab] 查阅随身《员工守则》第 1 页，随后对准【北侧墙 N-01】展开传送门穿过墙体。”'],
+    ['E', true,  1,    0.12, 0.035, 0.038, 0.90, 0.022, 0, false, false, '东北角校准仪打卡 [E] → 东侧墙 E-02 展开传送门', '“第 1 次穿墙完成。若对完全一致的房间陈设存有疑问，请按 [Tab] 翻阅《员工守则》第 2 页。请先去东北角按下【生理校准仪】，再在【东侧墙 E-02】开门。”'],
+    ['S', false, 2,    0.25, 0.062, 0.055, 0.80, 0.028, 0, true,  false, '核对雷达与守则 §3 → 在南侧墙 S-03 展开传送门', '“第 2 次穿墙完成。若左上角定位仪稍后闪现红点，请按 [Tab] 查阅《员工守则》第 3 页。今晚西侧主控室无人值班，请直接在【南侧墙 S-03】开门。”'],
+    ['W', false, null, 0.38, 0.095, 0.072, 0.70, 0.034, 1, false, false, '沿视线中线在西侧墙 W-04 展开传送门', '“第 3 次穿墙……滋啦……室内电压略有衰减，您可按 [L] 开启头盔辅助照明。请继续在【西侧墙 W-04】混凝土区域展开传送门。”'],
+    ['N', true,  3,    0.50, 0.128, 0.092, 0.60, 0.040, 2, false, false, '校准仪打卡 [E] → 在北侧墙 N-01 展开传送门', '“第 4 次穿墙完成。先按【校准仪】再去【北侧墙 N-01】开门。”'],
+    ['E', false, null, 0.62, 0.160, 0.112, 0.53, 0.045, 2, true,  false, '前往东侧墙 E-02 展开传送门', '“第 5 次……滋……做得很好，4091——更正，4092号。请径直前往【东侧墙 E-02】开门。”'],
+    ['S', false, null, 0.71, 0.190, 0.130, 0.48, 0.049, 3, false, true,  '前往南侧墙 S-03 展开传送门', '“滋啦——别再往前走了……墙外面还是墙，根本没有出口——滋——【信号恢复】请勿擅离测试动线，立即在【南侧墙 S-03】展开传送门。”'],
+    ['N', false, null, 0.78, 0.215, 0.145, 0.44, 0.052, 4, true,  false, '最终轮：在北侧墙 N-01 展开传送门', '“最 后 一 轮 校 准。请在【北侧墙 N-01】展开传送门并跨入墙体，人事系统将立即为您办理留舱归档手续。”']
+  ].map(([reqWall, needCalib, suggestManualTab, desat, distort, noise, lightLevel, fogDensity, spawnRoomShadows, spawnWindowShadow, hijacked, objective, broadcast]) => ({
+    reqWall, needCalib, suggestManualTab, desat, distort, noise, lightLevel, fogDensity, spawnRoomShadows, spawnWindowShadow, hijacked, objective, broadcast
+  }));
+  const GAZE_DISISSIPATE_LINES = [
+    '“滋——主控室提示：若一切无异常，请勿停留过久。请参照《员工守则》第 3 条继续测试。”',
+    '“提醒 4092 号：发现噪点可能是传感器异常，请勿在角落处驻足。”'
+  ];
+  const baseRunState = () => ({
+    pausedForModal: false, manualOpen: false, activeManualTab: 0, ended: false,
+    cycle: 0, wrongWallCount: 0, calibratedThisCycle: false, lockerNoteRead: false,
+    overrideUnlocked: false, overrideArmed: false, maxPowerArmed: false, posterPeeled: false,
+    inLostVoid: false, lostTimer: 0, inTransitionMonologue: false, inBedroom: false,
+    bedroomShadow: null, bedroomSeq: 0, bedroomTimer: 0, bedroomStartYaw: 0, bedroomMonYaw: 0, bedroomStartPitch: 0,
+    time: 0, stepAccumulator: 0, portalCrossings: 0, logsRead: 0, vanishedCount: 0, lastGazeBroadcastAt: -20,
+    curDesat: 0, curDistort: 0.012, curNoise: 0.022, curLight: 1.0, extraGlitch: 0,
+    px: 0, py: 1.66, pz: 3.6, yaw: 0, pitch: 0
+  });
+  const state = Object.assign({
+    started: false, flashlightOn: false, muted: false, touchEnabled: false,
+    endingSeq: { active: false, recordType: 'RETAINED', elapsed: 0, duration: 2.65 },
+    pendingSpawn: { active: false, timer: 0, roomCount: 0, windowShadow: false },
+    portal: { active: false, isSecretWindow: false, isPureWhiteExit: false, dir: 'N', offset: 0, progress: 0, crossedHalfway: false }
+  }, baseRunState());
+  const keys = {};
+  const touchMove = { up: false, down: false, left: false, right: false };
+  let isDraggingLook = false;
+  let lastPointerX = 0;
+  let lastPointerY = 0;
+  const audio = {
+    ctx: null,
+    master: null,
+    bgmGain: null,
+    bgmTimer: null,
+    bgmStep: 0,
+    bgmActive: false,
+    humOsc1: null,
+    humOsc2: null,
+    staticGain: null,
+    ready: false
+  };
+  const PITCH_C = { '6_low': 440, '1': 523.25, '3': 659.25, '5': 783.99, '6': 880, '6#': 932.33, '7': 987.77, 'ib': 1016.71, 'i': 1046.5 };
+  const BGM_MELODY = [
+    ['1',130.81,1],['3',0,1],['5',196,1],['3',0,1],['i',164.81,1],['5',0,1],['3',196,1],
+    ['1',130.81,1],['3',0,1],['5',196,1],['3',0,1],['6#',146.83,1],['6',0,1],['5',196,1],
+    ['1',130.81,1],['3',0,1],['5',196,1],['3',0,1],['6',174.61,1],['7',0,1],['ib',196,1],
+    ['i',130.81,1],['i',174.61,1],['7',0,1],['7',196,1],['i',130.81,1.5],[0,0,0.5],['6_low',110,1]
+  ].map(([k, b, beats]) => ({ m: k ? PITCH_C[k] : 0, b, beats }));
+  function initAudio() {
+    if (audio.ready) {
+      if (audio.ctx && audio.ctx.state === 'suspended') {
+        audio.ctx.resume();
+      }
+      return;
+    }
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      audio.ctx = ctx;
+      const master = ctx.createGain();
+      master.gain.value = state.muted ? 0 : 0.6;
+      master.connect(ctx.destination);
+      audio.master = master;
+      const humGain = ctx.createGain();
+      humGain.gain.value = 0.045;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 210;
+      const osc1 = ctx.createOscillator();
+      osc1.type = 'sawtooth';
+      osc1.frequency.value = 60;
+      const osc2 = ctx.createOscillator();
+      osc2.type = 'sine';
+      osc2.frequency.value = 45;
+      osc1.connect(lp);
+      osc2.connect(lp);
+      lp.connect(humGain);
+      humGain.connect(master);
+      osc1.start();
+      osc2.start();
+      const bufSize = ctx.sampleRate * 2;
+      const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+      const out = noiseBuf.getChannelData(0);
+      for (let i = 0; i < bufSize; i++) {
+        out[i] = (Math.random() * 2 - 1) * 0.45;
+      }
+      const white = ctx.createBufferSource();
+      white.buffer = noiseBuf;
+      white.loop = true;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 1400;
+      bp.Q.value = 0.9;
+      const staticGain = ctx.createGain();
+      staticGain.gain.value = 0.003;
+      white.connect(bp);
+      bp.connect(staticGain);
+      staticGain.connect(master);
+      white.start();
+      const bgmGain = ctx.createGain();
+      bgmGain.gain.value = 0.22;
+      bgmGain.connect(master);
+      audio.bgmGain = bgmGain;
+      audio.humOsc1 = osc1;
+      audio.humOsc2 = osc2;
+      audio.staticGain = staticGain;
+      audio.ready = true;
+    } catch (err) {
+    }
+  }
+  function playEnvTone(type, f0, f1, dur, vol) {
+    if (!audio.ready || state.muted) return;
+    const ctx = audio.ctx, now = ctx.currentTime, osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type = type; osc.frequency.setValueAtTime(f0, now);
+    if (f1 !== f0) osc.frequency.exponentialRampToValueAtTime(f1, now + dur * 0.94);
+    g.gain.setValueAtTime(vol, now); g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    osc.connect(g); g.connect(audio.master); osc.start(now); osc.stop(now + dur + 0.01);
+  }
+  const playFootstep = () => playEnvTone('triangle', 92 + Math.random() * 20, 34, 0.085, 0.10);
+  function playPaperRustle() {
+    if (!audio.ready || state.muted) return;
+    const ctx = audio.ctx;
+    const now = ctx.currentTime;
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.09), ctx.sampleRate);
+    const ch = buf.getChannelData(0);
+    for (let i = 0; i < ch.length; i++) {
+      ch[i] = (Math.random() * 2 - 1) * (1 - i / ch.length);
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'bandpass';
+    hp.frequency.value = 2200;
+    const g = ctx.createGain();
+    g.gain.value = 0.09;
+    src.connect(hp);
+    hp.connect(g);
+    g.connect(audio.master);
+    src.start(now);
+  }
+  function play8BitPianoNote(freq, dur, vol, isBass) {
+    if (!audio.ready || state.muted || freq <= 0 || !audio.bgmGain) return;
+    const ctx = audio.ctx;
+    const now = ctx.currentTime;
+    const detuneCents = state.cycle === 2 ? (Math.sin(state.time * 2.5) * 14 - 10) : 0;
+    const oscBody = ctx.createOscillator();
+    const oscTine = ctx.createOscillator();
+    const lp = ctx.createBiquadFilter();
+    const env = ctx.createGain();
+    const tineGain = ctx.createGain();
+    oscBody.type = isBass ? 'triangle' : 'square';
+    oscBody.frequency.setValueAtTime(freq, now);
+    oscBody.detune.value = detuneCents;
+    oscTine.type = 'triangle';
+    oscTine.frequency.setValueAtTime(freq * 2.0, now);
+    oscTine.detune.value = detuneCents + 3;
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(isBass ? 950 : 2850, now);
+    lp.frequency.exponentialRampToValueAtTime(isBass ? 420 : 1100, now + dur);
+    env.gain.setValueAtTime(0.0001, now);
+    env.gain.linearRampToValueAtTime(vol, now + 0.006);
+    env.gain.exponentialRampToValueAtTime(vol * 0.42, now + 0.09);
+    env.gain.exponentialRampToValueAtTime(0.0008, now + dur);
+    tineGain.gain.setValueAtTime(vol * 0.45, now);
+    tineGain.gain.exponentialRampToValueAtTime(0.0005, now + Math.min(0.16, dur * 0.5));
+    oscBody.connect(lp);
+    oscTine.connect(tineGain);
+    tineGain.connect(lp);
+    lp.connect(env);
+    env.connect(audio.bgmGain);
+    oscBody.start(now);
+    oscTine.start(now);
+    oscBody.stop(now + dur + 0.02);
+    oscTine.stop(now + dur + 0.02);
+  }
+  function startLight8BitBGM() {
+    stopLight8BitBGM(false);
+    if (!audio.ready) return;
+    audio.bgmActive = true;
+    audio.bgmStep = 0;
+    const tick = () => {
+      if (!audio.bgmActive || state.ended || state.cycle >= 3) return;
+      if (!state.started) return;
+      const stepObj = BGM_MELODY[audio.bgmStep % BGM_MELODY.length];
+      audio.bgmStep++;
+      const roundBpm = (!state.started || state.cycle === 0) ? 100 : (state.cycle === 1 ? 110 : 120);
+      const baseBeatMs = 60000 / roundBpm;
+      const stepMs = Math.round(baseBeatMs * stepObj.beats);
+      const noteDurSec = (stepMs / 1000) * 1.28;
+      const duck = subtitleBar.classList.contains('active') ? 0.55 : 1.0;
+      if (stepObj.m > 0) {
+        play8BitPianoNote(stepObj.m, noteDurSec, 0.16 * duck, false);
+      }
+      if (stepObj.b > 0) {
+        play8BitPianoNote(stepObj.b, noteDurSec * 1.25, 0.10 * duck, true);
+      }
+      audio.bgmTimer = setTimeout(tick, stepMs);
+    };
+    audio.bgmTimer = setTimeout(tick, 120);
+  }
+  function stopLight8BitBGM(withTapeStop) {
+    audio.bgmActive = false;
+    if (audio.bgmTimer) {
+      clearTimeout(audio.bgmTimer);
+      audio.bgmTimer = null;
+    }
+    if (withTapeStop) playEnvTone('square', 523.25, 75, 0.68, 0.08);
+  }
+  function playLatchPopClatter() {
+    if (!audio.ready || state.muted) return;
+    const ctx = audio.ctx;
+    const now = ctx.currentTime;
+    const noiseLen = Math.floor(ctx.sampleRate * 0.045);
+    const nBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
+    const nData = nBuf.getChannelData(0);
+    for (let i = 0; i < noiseLen; i++) {
+      nData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / noiseLen, 1.8);
+    }
+    const nSrc = ctx.createBufferSource();
+    nSrc.buffer = nBuf;
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 2600;
+    const nGain = ctx.createGain();
+    nGain.gain.value = 0.65;
+    nSrc.connect(hp);
+    hp.connect(nGain);
+    nGain.connect(audio.master);
+    nSrc.start(now);
+    const partials = [
+      { f1: 2860, f2: 2640, dur: 0.22, vol: 0.42, delay: 0.0 },
+      { f1: 4180, f2: 3920, dur: 0.16, vol: 0.30, delay: 0.005 },
+      { f1: 1420, f2: 890,  dur: 0.28, vol: 0.36, delay: 0.01 }
+    ];
+    partials.forEach((pt) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(pt.f1, now + pt.delay);
+      o.frequency.exponentialRampToValueAtTime(pt.f2, now + pt.delay + pt.dur);
+      g.gain.setValueAtTime(pt.vol, now + pt.delay);
+      g.gain.exponentialRampToValueAtTime(0.001, now + pt.delay + pt.dur);
+      o.connect(g);
+      g.connect(audio.master);
+      o.start(now + pt.delay);
+      o.stop(now + pt.delay + pt.dur + 0.01);
+    });
+    const bounces = [
+      { t: 0.26, fA: 2340, fB: 3490, vol: 0.46, dur: 0.18 },
+      { t: 0.43, fA: 2520, fB: 3710, vol: 0.30, dur: 0.14 },
+      { t: 0.54, fA: 2680, fB: 3890, vol: 0.16, dur: 0.10 }
+    ];
+    bounces.forEach((b) => {
+      [b.fA, b.fB].forEach((freq, idx) => {
+        const bo = ctx.createOscillator();
+        const bg = ctx.createGain();
+        bo.type = idx === 0 ? 'triangle' : 'sine';
+        bo.frequency.setValueAtTime(freq, now + b.t);
+        bo.frequency.exponentialRampToValueAtTime(freq * 0.92, now + b.t + b.dur);
+        bg.gain.setValueAtTime(b.vol * (idx === 0 ? 1.0 : 0.65), now + b.t);
+        bg.gain.exponentialRampToValueAtTime(0.001, now + b.t + b.dur);
+        bo.connect(bg);
+        bg.connect(audio.master);
+        bo.start(now + b.t);
+        bo.stop(now + b.t + b.dur + 0.01);
+      });
+    });
+  }
+  function playLockerSound(opening) {
+    if (!audio.ready || state.muted) return;
+    const ctx = audio.ctx;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    if (opening) {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(145, now);
+      osc.frequency.linearRampToValueAtTime(215, now + 0.22);
+      osc.frequency.linearRampToValueAtTime(128, now + 0.48);
+      g.gain.setValueAtTime(0.001, now);
+      g.gain.linearRampToValueAtTime(0.11, now + 0.06);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+      osc.connect(g);
+      g.connect(audio.master);
+      osc.start(now);
+      osc.stop(now + 0.52);
+    } else {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(190, now);
+      osc.frequency.setValueAtTime(135, now + 0.06);
+      g.gain.setValueAtTime(0.09, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+      osc.connect(g);
+      g.connect(audio.master);
+      osc.start(now);
+      osc.stop(now + 0.15);
+    }
+  }
+  function playEndingRumble() {
+    if (!audio.ready || state.muted) return;
+    const ctx = audio.ctx;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const lp = ctx.createBiquadFilter();
+    const g = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(58, now);
+    osc.frequency.exponentialRampToValueAtTime(21, now + 2.4);
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(39, now);
+    osc2.frequency.linearRampToValueAtTime(18, now + 2.4);
+    lp.type = 'lowpass';
+    lp.frequency.value = 140;
+    g.gain.setValueAtTime(0.01, now);
+    g.gain.linearRampToValueAtTime(0.32, now + 0.55);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+    osc.connect(lp);
+    osc2.connect(lp);
+    lp.connect(g);
+    g.connect(audio.master);
+    osc.start(now);
+    osc2.start(now);
+    osc.stop(now + 2.55);
+    osc2.stop(now + 2.55);
+  }
+  function playPortalUnfoldSound(isOverride) {
+    if (!audio.ready || state.muted) return;
+    const ctx = audio.ctx;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const oscSub = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(isOverride ? 185 : 115, now);
+    osc.frequency.exponentialRampToValueAtTime(isOverride ? 590 : 330, now + 0.42);
+    osc.frequency.exponentialRampToValueAtTime(76, now + 0.90);
+    oscSub.type = 'sine';
+    oscSub.frequency.setValueAtTime(48, now);
+    oscSub.frequency.linearRampToValueAtTime(36, now + 0.90);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = isOverride ? 880 : 520;
+    filter.Q.value = 2.2;
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.22, now + 0.12);
+    gain.gain.exponentialRampToValueAtTime(0.002, now + 0.92);
+    osc.connect(filter);
+    filter.connect(gain);
+    oscSub.connect(gain);
+    gain.connect(audio.master);
+    osc.start(now);
+    oscSub.start(now);
+    osc.stop(now + 0.95);
+    oscSub.stop(now + 0.95);
+  }
+  const playPortalCrossSound = () => playEnvTone('sine', 80, 28, 0.52, 0.30);
+  function playDissipateWhisper() {
+    if (!audio.ready || state.muted) return;
+    const ctx = audio.ctx;
+    const now = ctx.currentTime;
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.28), ctx.sampleRate);
+    const ch = buf.getChannelData(0);
+    for (let i = 0; i < ch.length; i++) {
+      ch[i] = (Math.random() * 2 - 1) * Math.sin((i / ch.length) * Math.PI);
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.setValueAtTime(960, now);
+    bp.frequency.exponentialRampToValueAtTime(300, now + 0.28);
+    bp.Q.value = 3.0;
+    const g = ctx.createGain();
+    g.gain.value = 0.13;
+    src.connect(bp);
+    bp.connect(g);
+    g.connect(audio.master);
+    src.start(now);
+  }
+  const playWallSealSound = () => playEnvTone('square', 66, 24, 0.28, 0.18);
+  function playPAChime(hijacked) {
+    if (!audio.ready || state.muted) return;
+    const ctx = audio.ctx;
+    const now = ctx.currentTime;
+    const notes = hijacked ? [495, 315, 195] : [587.33, 440.0, 349.23];
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 1150;
+    bp.Q.value = 1.8;
+    bp.connect(audio.master);
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      const t0 = now + idx * 0.21;
+      osc.type = hijacked ? 'sawtooth' : 'triangle';
+      osc.frequency.setValueAtTime(freq - state.cycle * 6, t0);
+      g.gain.setValueAtTime(0.001, t0);
+      g.gain.linearRampToValueAtTime(0.14, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.002, t0 + 0.26);
+      osc.connect(g);
+      g.connect(bp);
+      osc.start(t0);
+      osc.stop(t0 + 0.28);
+    });
+  }
+  function playVoiceSyllable(hijacked) {
+    if (!audio.ready || state.muted) return;
+    const ctx = audio.ctx;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const bp = ctx.createBiquadFilter();
+    const g = ctx.createGain();
+    const base = hijacked ? 116 : Math.max(96, 162 - state.cycle * 7);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(base + (Math.random() - 0.5) * 28, now);
+    bp.type = 'bandpass';
+    bp.frequency.value = 800 + Math.random() * 620;
+    bp.Q.value = 3.4;
+    g.gain.setValueAtTime(0.028, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.052);
+    osc.connect(bp);
+    bp.connect(g);
+    g.connect(audio.master);
+    osc.start(now);
+    osc.stop(now + 0.058);
+  }
+  const playUiBeep = (freq = 700, dur = 0.08) => playEnvTone('square', freq, freq, dur, 0.065);
+  let subTimerId = null;
+  let subHideTimeout = null;
+  function triggerBroadcast(text, isHijacked, speakerOverride) {
+    if (state.endingSeq.active || state.ended) return;
+    if (subTimerId) clearInterval(subTimerId);
+    if (subHideTimeout) clearTimeout(subHideTimeout);
+    subtitleBar.classList.add('active');
+    if (isHijacked) {
+      subtitleBar.classList.add('hijacked');
+      subSpeakerLabel.textContent = speakerOverride || '异常串频信号 · 墙内回波';
+      subChannelTag.textContent = 'CH-ERR 串音';
+    } else {
+      subtitleBar.classList.remove('hijacked');
+      subSpeakerLabel.textContent = speakerOverride || '设施扩音喇叭 · B-09主控室';
+      subChannelTag.textContent = 'CH-04 内部广播';
+    }
+    playPAChime(Boolean(isHijacked));
+    subtitleText.textContent = '';
+    let idx = 0;
+    subTimerId = setInterval(() => {
+      if (idx < text.length) {
+        subtitleText.textContent += text[idx];
+        if (idx % 2 === 0 && text[idx] !== ' ' && text[idx] !== '…') {
+          playVoiceSyllable(Boolean(isHijacked));
+        }
+        idx++;
+      } else {
+        clearInterval(subTimerId);
+        subTimerId = null;
+        subHideTimeout = setTimeout(() => {
+          subtitleBar.classList.remove('active');
+        }, 9500);
+      }
+    }, 36);
+  }
+  function renderManualPage(tabIdx) {
+    state.activeManualTab = tabIdx;
+    document.querySelectorAll('.manual-tab-btn').forEach((btn) => {
+      btn.classList.toggle('active', Number(btn.dataset.tab) === tabIdx);
+    });
+    const c = state.cycle;
+    if (tabIdx === 0) {
+      manualPageBody.innerHTML =
+        '<p><strong>第一条（标准移动与观察）</strong>：受试员入舱后，使用 <code>W A S D</code> 或方向键行走（按住 <code>Shift</code> 快步移动），移动鼠标或按住画面拖拽环顾四周（亦可用 <code>Q / R</code> 辅助转向）。</p>' +
+        '<p><strong>第二条（视线中线展开规程）</strong>：将准星对准任意承重混凝土墙面，按下 <strong>鼠标左键</strong> 或 <strong>F 键</strong>，【裂隙展开器】即会<strong>以您当前视线落点为垂直中线</strong>向两侧切开墙面并展开传送门。</p>' +
+        '<p><strong>第三条（巡检与照明）</strong>：靠近室内设备出现 <code>[E]</code> 标记时可按 <strong>E 键</strong> 操作校准仪、拉开铁柜或检视终端；若室内照度下降，可随时按 <strong>L 键</strong> 开启头盔宽幅照明灯。</p>';
+    } else if (tabIdx === 1) {
+      manualPageBody.innerHTML =
+        '<p><strong>第四条（同构空间说明）</strong>：B-09 栋系单层全密闭建筑。展开墙面门并穿过逾两米厚的承重墙钢筋截面后，您所踏入的“墙壁另一侧”在陈设布局上与原房间完全一致，请勿驻足疑虑。</p>' +
+        '<p><strong>第五条（禁射区域）</strong>：南侧气密防爆门与西侧单向观察窗均涂有特殊抗相位镀层，常规极性下无法在其表面展开裂隙。</p>' +
+        (c >= 1
+          ? '<div class="hidden-note-pencil">穿墙时留意过门框里的钢筋切面吗？每一轮钢筋锈蚀的位置都分毫不差……</div>'
+          : '');
+    } else if (tabIdx === 2) {
+      manualPageBody.innerHTML =
+        '<p><strong>第六条（定位仪规范）</strong>：左上角生物电定位仪中，<strong>白色光点</strong>代表受试员本人及朝向；若穿墙数次后盘面偶现<strong>红色光点</strong>，系墙体磁化回波。</p>' +
+        '<p><strong>第七条（局部吸光与消散）</strong>：该回波伴随轻微的周围光线衰减。受试员转身对准注视片刻，噪点即会自行溃散，广播亦会同步确认。</p>' +
+        (c >= 2
+          ? '<div class="hidden-note-ballpoint">光学重影不会吸走手电筒的光……。</div>'
+          : '');
+    } else {
+      manualPageBody.innerHTML =
+        '<p><strong>第八条（私人物品暂存）</strong>：试验舱西南角设有员工铁柜（编号 #4091），供上一班次受试员存放个人物品及交接单据。试验期间挂锁默认闭合，无关人员无需开启。</p>' +
+        '<p><strong>第九条（离舱归档）</strong>：完成全部 07 轮折叠穿行后，系统将自动完成受试员人事建档，无需人工开启南侧防爆门。</p>' +
+        (c >= 4
+          ? '<div class="hidden-note-scratch">第 4 轮之后西南角那只铁柜的锁扣松了……去拉开柜门看看隔板里塞着的东西。</div>'
+          : '');
+    }
+  }
+  function toggleManualModal(forceTab) {
+    if (!state.started || state.ended || state.endingSeq.active) return;
+    if (inspectModal.classList.contains('open')) {
+      closeInspectModal();
+    }
+    if (state.manualOpen && forceTab === undefined) {
+      state.manualOpen = false;
+      state.pausedForModal = false;
+      manualModal.classList.remove('open');
+      playPaperRustle();
+      return;
+    }
+    state.manualOpen = true;
+    state.pausedForModal = true;
+    btnBriefingHelp.classList.remove('notify');
+    if (document.pointerLockElement) {
+      try { document.exitPointerLock(); } catch (e) {  }
+    }
+    renderManualPage(forceTab !== undefined ? forceTab : state.activeManualTab);
+    manualModal.classList.add('open');
+    playPaperRustle();
+  }
+  document.querySelectorAll('.manual-tab-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      playPaperRustle();
+      renderManualPage(Number(btn.dataset.tab));
+    });
+  });
+  btnManualClose.addEventListener('click', () => toggleManualModal());
+  function makePixelTexture(w, h, drawFn, repeatX, repeatY) {
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    drawFn(ctx, w, h);
+    const tex = new THREE.CanvasTexture(c);
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.NearestFilter;
+    tex.generateMipmaps = false;
+    if (repeatX || repeatY) {
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(repeatX || 1, repeatY || 1);
+    }
+    return tex;
+  }
+  function makeSilhouetteTex(brightEyes) {
+    return makePixelTexture(64, 128, (ctx, w, h) => {
+      ctx.clearRect(0, 0, w, h);
+      for (let y = 6; y < h - 2; y++) {
+  for (let x = 8; x < w - 8; x++) {
+    const nx = (x - 32) / 16;
+    const bw = y < 28 ? Math.max(0, 1 - (nx * nx * 2.1 + Math.pow((y - 17) / 11, 2)))
+      : y < 34 ? Math.max(0, 0.65 - Math.abs(nx) * 2.2)
+      : y < 82 ? Math.max(0, (y < 44 ? 1.05 : 0.88) - Math.abs(nx) * 1.15)
+      : Math.max(0, (0.58 - Math.abs(Math.abs(nx) - 0.24) * 1.5) * (1 - (y - 82) / 48));
+    if (brightEyes && bw > 0.05) {
+      const r = bw < 0.26 ? 26 : 12;
+      fRect(ctx, `rgba(${r},${r + 3},${r + 4},0.92)`, x, y, 1, 1);
+    } else if (!brightEyes && bw > 0.04 && bw * 1.25 > (((x * 3 + y * 5) % 8) / 8) * 0.65) {
+      fRect(ctx, `rgba(4,6,6,${Math.min(0.92, bw * 1.15).toFixed(2)})`, x, y, 1, 1);
+    }
+  }
+      }
+      if (brightEyes) {
+  fRect(ctx, 'rgba(180,210,225,0.38)', 25, 15, 6, 5); fRect(ctx, 'rgba(180,210,225,0.38)', 33, 15, 6, 5);
+  fRect(ctx, 'rgba(245,252,255,0.98)', 27, 16, 3, 3); fRect(ctx, 'rgba(245,252,255,0.98)', 34, 16, 3, 3);
+      } else {
+  fRect(ctx, 'rgba(185,200,192,0.24)', 27, 16, 2, 2); fRect(ctx, 'rgba(185,200,192,0.24)', 35, 16, 2, 2);
+      }
+    });
+  }
+  const textures = {
+    wall: makePixelTexture(64, 64, (ctx, w, h) => {
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const n = ((x * 37 + y * 91 + (x ^ y) * 11) % 23) - 11;
+          const wainscot = y > 46 ? -18 : 0;
+          const v = Math.max(76, Math.min(188, 152 + n + wainscot));
+          fRect(ctx, `rgb(${v},${v + 3},${v - 2})`, x, y, 1, 1);
+        }
+      }
+      fRect(ctx, '#6f786e', 0, 46, w, 2);
+      fRect(ctx, '#757a72', 0, 0, w, 1);
+      ctx.fillRect(31, 0, 1, h);
+      fRect(ctx, '#565b54', 7, 8, 2, 2);
+      ctx.fillRect(55, 8, 2, 2);
+    }, 1, 1),
+    floor: makePixelTexture(32, 32, (ctx, w, h) => {
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const tile = ((x >> 4) + (y >> 4)) % 2;
+          const base = tile ? 98 : 86;
+          const grit = ((x * 19 + y * 47) % 11) - 5;
+          const v = base + grit;
+          fRect(ctx, `rgb(${v},${v + 2},${v - 1})`, x, y, 1, 1);
+        }
+      }
+      fRect(ctx, '#4e544f', 0, 0, w, 1);
+      ctx.fillRect(0, 0, 1, h);
+      ctx.fillRect(16, 0, 1, h);
+      ctx.fillRect(0, 16, w, 1);
+    }, 8, 8),
+    ceiling: makePixelTexture(32, 32, (ctx, w, h) => {
+      fRect(ctx, '#8b918a', 0, 0, w, h);
+      for (let y = 0; y < h; y += 2) {
+        for (let x = (y % 4 === 0 ? 0 : 1); x < w; x += 3) {
+          fRect(ctx, '#737972', x, y, 1, 1);
+        }
+      }
+      fRect(ctx, '#5c615b', 0, 0, w, 2);
+      ctx.fillRect(0, 0, 2, h);
+    }, 6, 6),
+    rebarCut: makePixelTexture(64, 64, (ctx, w, h) => {
+      fRect(ctx, '#464a46', 0, 0, w, h);
+      for (let i = 0; i < 280; i++) {
+        ctx.fillStyle = i % 2 === 0 ? '#5e635d' : '#2e312e';
+        ctx.fillRect((i * 19) % w, (i * 31) % h, 2, 2);
+      }
+      fRect(ctx, '#8c442d', 9, 0, 4, h);
+      ctx.fillRect(27, 0, 3, h);
+      ctx.fillRect(49, 0, 4, h);
+      fRect(ctx, '#6e3220', 11, 14, 9, 5);
+      ctx.fillRect(25, 41, 8, 6);
+      ctx.fillRect(46, 23, 10, 4);
+    }, 3, 2),
+    lockerDoor: makePixelTexture(48, 96, (ctx, w, h) => {
+      fRect(ctx, '#4a585a', 0, 0, w, h);
+      ctx.strokeStyle = '#2d3738';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(2, 2, w - 4, h - 4);
+      ctx.fillStyle = '#222a2b';
+      for (let v = 16; v <= 30; v += 4) {
+        ctx.fillRect(10, v, 28, 2);
+      }
+      for (let v = 72; v <= 82; v += 4) {
+        ctx.fillRect(10, v, 28, 2);
+      }
+      fRect(ctx, '#d4ccb4', 13, 8, 22, 5);
+      fRect(ctx, '#9aa6a2', 38, 45, 4, 11);
+    }),
+    blastDoor: makePixelTexture(64, 96, (ctx, w, h) => {
+      fRect(ctx, '#4c5652', 0, 0, w, h);
+      ctx.strokeStyle = '#29302d';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(2, 2, w - 4, h - 4);
+      for (let i = -20; i < w + 20; i += 10) {
+        ctx.fillStyle = '#c99730';
+        ctx.beginPath();
+        ctx.moveTo(i, 74);
+        ctx.lineTo(i + 5, 74);
+        ctx.lineTo(i - 3, 88);
+        ctx.lineTo(i - 8, 88);
+        ctx.closePath();
+        ctx.fill();
+      }
+      fRect(ctx, '#29302e', 8, 12, 48, 26);
+      ctx.fillStyle = '#bfd1c6';
+      ctx.font = 'bold 9px monospace';
+      ctx.fillText('B-09 EXIT', 10, 24);
+      ctx.fillStyle = '#ff6262';
+      ctx.fillText('LOCKED', 15, 34);
+      ctx.strokeStyle = '#9fa8a3';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(46, 54, 8, 0, Math.PI * 2);
+      ctx.stroke();
+    }),
+    silhouette: makeSilhouetteTex(false),
+    silhouetteBrightEyes: makeSilhouetteTex(true),
+    woodFloor: makePixelTexture(32, 32, (ctx, w, h) => {
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const grain = ((x * 7 + y * 31) % 13) - 6;
+          fRect(ctx, `rgb(${164 + grain}, ${124 + grain}, ${84 + grain})`, x, y, 1, 1);
+        }
+      }
+      fRect(ctx, '#825c38', 0, 0, w, 1);
+      ctx.fillRect(0, 16, w, 1);
+      ctx.fillRect(15, 0, 1, 16);
+      ctx.fillRect(31, 16, 1, 16);
+    }, 6, 6),
+    bedroomWall: makePixelTexture(32, 32, (ctx, w, h) => {
+      fRect(ctx, '#efe8d8', 0, 0, w, h);
+      ctx.fillStyle = '#e5decb';
+      for (let x = 0; x < w; x += 8) {
+        ctx.fillRect(x, 0, 2, h);
+      }
+      fRect(ctx, '#c4ae8c', 0, 28, w, 4);
+    }, 5, 2),
+    bedroomDoor: makePixelTexture(48, 96, (ctx, w, h) => {
+      fRect(ctx, '#7a563b', 0, 0, w, h);
+      ctx.strokeStyle = '#523723';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(2, 2, w - 4, h - 4);
+      ctx.strokeStyle = '#5c3f28';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(8, 10, w - 16, 34);
+      ctx.strokeRect(8, 52, w - 16, 34);
+      fRect(ctx, '#876144', 10, 12, w - 20, 30);
+      ctx.fillRect(10, 54, w - 20, 30);
+      fRect(ctx, '#dec068', 37, 46, 5, 5);
+    }),
+    wardrobeFront: makePixelTexture(64, 96, (ctx, w, h) => {
+      fRect(ctx, '#6e4e35', 0, 0, w, h);
+      ctx.strokeStyle = '#47301f';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(2, 2, w - 4, h - 4);
+      fRect(ctx, '#382416', 31, 4, 2, h - 8);
+      ctx.strokeStyle = '#543925';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(6, 8, 21, h - 18);
+      ctx.strokeRect(37, 8, 21, h - 18);
+      fRect(ctx, '#d8ba62', 26, 44, 3, 10);
+      ctx.fillRect(35, 44, 3, 10);
+    }),
+    bedroomRug: makePixelTexture(64, 48, (ctx, w, h) => {
+      fRect(ctx, '#b86b52', 0, 0, w, h);
+      ctx.strokeStyle = '#dfd3be';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(4, 4, w - 8, h - 8);
+      ctx.strokeStyle = '#8c4936';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(10, 10, w - 20, h - 20);
+    }),
+    heavyLightSink: makePixelTexture(64, 64, (ctx, w, h) => {
+      ctx.clearRect(0, 0, w, h);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const dx = (x - 31.5) / 31.5;
+          const dy = (y - 31.5) / 31.5;
+          const r = Math.sqrt(dx * dx + dy * dy);
+          if (r < 1.0) {
+            const falloff = Math.pow(1.0 - r, 2.0) * 0.56;
+            const bayer = (((x & 3) * 5 + (y & 3) * 3) % 16) / 16 * 0.07;
+            const a = Math.max(0, Math.min(0.58, falloff - bayer * (1 - falloff)));
+            if (a > 0.015) {
+              fRect(ctx, `rgba(255, 255, 255, ${a.toFixed(3)})`, x, y, 1, 1);
+            }
+          }
+        }
+      }
+    }),
+    lightSink: makePixelTexture(64, 64, (ctx, w, h) => {
+      ctx.clearRect(0, 0, w, h);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const dx = (x - 31.5) / 31.5;
+          const dy = (y - 31.5) / 31.5;
+          const r = Math.sqrt(dx * dx + dy * dy);
+          if (r < 1.0) {
+            const falloff = Math.pow(1.0 - r, 1.85);
+            const bayer = (((x & 3) * 5 + (y & 3) * 3) % 16) / 16 * 0.08;
+            const a = Math.max(0, Math.min(0.62, falloff * 0.58 - bayer * (1 - falloff)));
+            if (a > 0.01) {
+              fRect(ctx, `rgba(255, 255, 255, ${a.toFixed(3)})`, x, y, 1, 1);
+            }
+          }
+        }
+      }
+    })
+  };
+  function createWallSignTexture(wallCode, subLabel) {
+    return makePixelTexture(128, 48, (ctx, w, h) => {
+      fRect(ctx, '#2b312e', 0, 0, w, h);
+      ctx.strokeStyle = '#c9a23f';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(2, 2, w - 4, h - 4);
+      ctx.fillStyle = '#e2ece5';
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText('SECTOR ' + wallCode, 10, 22);
+      ctx.fillStyle = '#d4ae4e';
+      ctx.font = '11px sans-serif';
+      ctx.fillText(subLabel, 10, 38);
+    });
+  }
+  function createPosterTexture(peeled) {
+    return makePixelTexture(96, 128, (ctx, w, h) => {
+      if (!peeled) {
+        fRect(ctx, '#dfd8c3', 0, 0, w, h);
+        fRect(ctx, '#235241', 6, 6, w - 12, 24);
+        ctx.fillStyle = '#f4f1e6';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('恒界空间科技', 14, 22);
+        ctx.strokeStyle = '#2d7f8c';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(26, 40, 44, 54);
+        ctx.fillStyle = '#2c2c28';
+        ctx.font = '10px sans-serif';
+        ctx.fillText('穿墙如归家', 22, 108);
+        ctx.fillText('合规 · 零残留', 17, 120);
+        ctx.fillStyle = '#686d66';
+        ctx.beginPath();
+        ctx.moveTo(w - 26, h);
+        ctx.lineTo(w, h - 26);
+        ctx.lineTo(w, h);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        fRect(ctx, '#626761', 0, 0, w, h);
+        ctx.fillStyle = '#752222';
+        for (let row = 10; row < 86; row += 15) {
+          for (let col = 9; col < 82; col += 17) {
+            ctx.save();
+            ctx.translate(col, row + ((col * 7) % 5));
+            ctx.rotate((((row + col) % 7) - 3.5) * 0.08);
+            for (let k = 0; k < 4; k++) {
+              ctx.fillRect(k * 2, 0, 1, 8);
+            }
+            ctx.fillRect(-1, 3, 10, 1);
+            ctx.restore();
+          }
+        }
+        ctx.save();
+        ctx.translate(10, 112);
+        ctx.rotate(-0.16);
+        ctx.fillStyle = '#2b1616';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText('4 09 1  柜  里', 0, 0);
+        ctx.restore();
+      }
+    });
+  }
+  function createTerminalScreenTexture(cycleIdx, overrideArmed, canUnlock) {
+    return makePixelTexture(128, 96, (ctx, w, h) => {
+      fRect(ctx, overrideArmed ? '#260810' : '#091a10', 0, 0, w, h);
+      ctx.fillStyle = overrideArmed ? '#ff5c7c' : (canUnlock ? '#f0b654' : '#85f2a0');
+      ctx.font = 'bold 10px monospace';
+      ctx.fillText('TERM B-09 // #4092', 6, 16);
+      ctx.fillRect(6, 20, w - 12, 1);
+      ctx.font = '9px sans-serif';
+      if (overrideArmed) {
+        ctx.fillText('逆相极性：已锁定', 6, 38);
+        ctx.fillText('适用：西侧镀膜窗', 6, 54);
+        ctx.fillText('左键/F 执行开孔', 6, 72);
+      } else if (canUnlock) {
+        ctx.fillText('墙体净距：-1.8cm', 6, 38);
+        ctx.fillText('校验槽：待键入工号', 6, 54);
+        ctx.fillText('[E] 调出工号键盘', 6, 72);
+      } else {
+        ctx.fillText('舱门状态：外部闭锁', 6, 38);
+        ctx.fillText('定员记录：1 人', 6, 54);
+        ctx.fillText('遥测回波：正常', 6, 72);
+      }
+    });
+  }
+  const clockCanvas = document.createElement('canvas');
+  clockCanvas.width = 64;
+  clockCanvas.height = 64;
+  const clockCtx = clockCanvas.getContext('2d');
+  const clockTexture = new THREE.CanvasTexture(clockCanvas);
+  clockTexture.magFilter = THREE.NearestFilter;
+  clockTexture.minFilter = THREE.NearestFilter;
+  function updateClockTexture(t) {
+    const ctx = clockCtx;
+    fRect(ctx, '#242927', 0, 0, 64, 64);
+    ctx.strokeStyle = '#aebbb2';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(32, 32, 27, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#e3ebe5';
+    ctx.beginPath();
+    ctx.arc(32, 32, 24, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#222';
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      ctx.fillRect(31 + Math.cos(a) * 20, 31 + Math.sin(a) * 20, 2, 2);
+    }
+    let secAngle = 0;
+    let minAngle = 1.4;
+    if (state.cycle === 0) {
+      secAngle = (Math.floor(t) % 60) * (Math.PI * 2 / 60);
+    } else if (state.cycle <= 3) {
+      secAngle = 0.9 + ((Math.floor(t * 7) % 2) * 0.08);
+    } else {
+      secAngle = -t * (2.2 + state.cycle * 0.6);
+      minAngle = 1.4 - t * 0.3;
+    }
+    ctx.strokeStyle = '#191d1a';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(32, 32);
+    ctx.lineTo(32 + Math.cos(-0.9) * 12, 32 + Math.sin(-0.9) * 12);
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(32, 32);
+    ctx.lineTo(32 + Math.cos(minAngle) * 17, 32 + Math.sin(minAngle) * 17);
+    ctx.stroke();
+    ctx.strokeStyle = '#b92b2b';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(32, 32);
+    ctx.lineTo(32 + Math.cos(secAngle) * 19, 32 + Math.sin(secAngle) * 19);
+    ctx.stroke();
+    clockTexture.needsUpdate = true;
+  }
+  const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: false, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(1);
+  const worldScene = new THREE.Scene();
+  worldScene.background = new THREE.Color(0x161a18);
+  worldScene.fog = new THREE.FogExp2(0x141816, 0.018);
+  const camera = new THREE.PerspectiveCamera(72, 16 / 9, 0.08, 46);
+  camera.rotation.order = 'YXZ';
+  worldScene.add(camera);
+  const flashLight = new THREE.SpotLight(0xf2f8ff, 0.0, 24, Math.PI / 3.3, 0.48, 1.1);
+  flashLight.position.set(0.14, -0.08, 0);
+  flashLight.target.position.set(0, -0.04, -6);
+  camera.add(flashLight);
+  camera.add(flashLight.target);
+  const handGroup = new THREE.Group();
+  handGroup.position.set(0.27, -0.24, -0.40);
+  camera.add(handGroup);
+  const gripMesh = new THREE.Mesh(boxGeo(0.11, 0.10, 0.28), lambert({ color: 0x353e3b }));
+  handGroup.add(gripMesh);
+  const barrelMesh = mkBox(0.065, 0.065, 0.16, lambert({ color: 0x56625d }), 0, 0.01, -0.18, handGroup);
+  const emitterCoreMat = basic({ color: 0x6edff6 });
+  const emitterCore = mkBox(0.042, 0.042, 0.12, emitterCoreMat, 0, 0.048, -0.06, handGroup);
+  const emfLedMats = [
+    basic({ color: 0x39b858 }),
+    basic({ color: 0x3b3518 }),
+    basic({ color: 0x3b1616 })
+  ];
+  emfLedMats.forEach((m, idx) => {
+    const led = mkBox(0.018, 0.014, 0.018, m, -0.026 + idx * 0.026, 0.056, 0.06, handGroup);
+  });
+  const PIXEL_TARGET_HEIGHT = 224;
+  let pixelRT = new THREE.WebGLRenderTarget(398, PIXEL_TARGET_HEIGHT, {
+    minFilter: THREE.NearestFilter,
+    magFilter: THREE.NearestFilter,
+    format: THREE.RGBAFormat,
+    stencilBuffer: false
+  });
+  const postScene = new THREE.Scene();
+  const postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const postUniforms = {
+    tDiffuse: { value: pixelRT.texture },
+    uResolution: { value: new THREE.Vector2(398, PIXEL_TARGET_HEIGHT) },
+    uTime: { value: 0 },
+    uDesat: { value: 0 },
+    uDistort: { value: 0.012 },
+    uNoise: { value: 0.022 },
+    uPulseFlash: { value: 0 },
+    uBlackout: { value: 0 }
+  };
+  const postMaterial = new THREE.ShaderMaterial({
+    uniforms: postUniforms,
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = vec4(position.xy, 0.0, 1.0);
+      }
+    `,
+    fragmentShader: `
+      precision mediump float;
+      uniform sampler2D tDiffuse;
+      uniform vec2 uResolution;
+      uniform float uTime;
+      uniform float uDesat;
+      uniform float uDistort;
+      uniform float uNoise;
+      uniform float uPulseFlash;
+      uniform float uBlackout;
+      varying vec2 vUv;
+      float hash(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+      void main() {
+        vec2 uv = vUv;
+        vec2 centered = uv * 2.0 - 1.0;
+        float r2 = dot(centered, centered);
+        uv = (centered * (1.0 + 0.025 * uDistort * r2)) * 0.5 + 0.5;
+        float scanY = floor(uv.y * uResolution.y) / uResolution.y;
+        float tapeBar = smoothstep(0.96, 1.0, sin(scanY * 6.5 - uTime * 1.9));
+        float lineJitter = (hash(vec2(scanY, floor(uTime * 16.0))) - 0.5) * 0.008 * uDistort * (0.2 + tapeBar * 1.8);
+        uv.x += lineJitter;
+        uv = clamp(uv, 0.001, 0.999);
+        float chroma = (0.0008 + 0.0055 * uDistort) * (0.25 + r2 * 0.85);
+        float colR = texture2D(tDiffuse, vec2(clamp(uv.x + chroma, 0.0, 1.0), uv.y)).r;
+        float colG = texture2D(tDiffuse, uv).g;
+        float colB = texture2D(tDiffuse, vec2(clamp(uv.x - chroma, 0.0, 1.0), uv.y)).b;
+        vec3 col = vec3(colR, colG, colB);
+        vec2 pix = floor(vUv * uResolution);
+        float bayer = mod(pix.x + pix.y * 2.0, 4.0) / 4.0 - 0.375;
+        float levels = mix(38.0, 24.0, uDesat);
+        col = floor(col * levels + bayer * 0.42) / levels;
+        float luma = dot(col, vec3(0.299, 0.587, 0.114));
+        vec3 coldTape = vec3(luma * 0.97, luma * 1.01, luma * 0.95);
+        float redAccent = max(0.0, col.r - max(col.g, col.b) * 1.3);
+        col = mix(col, coldTape + vec3(redAccent * 0.45, 0.0, 0.0), clamp(uDesat, 0.0, 0.85));
+        float grain = (hash(pix + fract(uTime * 31.0) * 100.0) - 0.5) * uNoise * 0.55;
+        col += vec3(grain);
+        float scanline = 0.95 + 0.05 * sin(vUv.y * uResolution.y * 3.14159);
+        col *= scanline;
+        float vig = 1.0 - r2 * (0.14 + 0.14 * uDistort + uBlackout * 0.95);
+        col *= clamp(vig, 0.0, 1.0);
+        col += vec3(0.32, 0.48, 0.54) * uPulseFlash;
+        col *= (1.0 - clamp(uBlackout, 0.0, 1.0));
+        gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+      }
+    `
+  });
+  const postQuad = new THREE.Mesh(planeGeo(2, 2), postMaterial);
+  postScene.add(postQuad);
+  function handleResize() {
+    const w = Math.max(320, wrapEl.clientWidth);
+    const h = Math.max(240, wrapEl.clientHeight);
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    const rtH = PIXEL_TARGET_HEIGHT;
+    const rtW = Math.max(250, Math.round(rtH * (w / h)));
+    pixelRT.setSize(rtW, rtH);
+    postUniforms.uResolution.value.set(rtW, rtH);
+  }
+  window.addEventListener('resize', handleResize);
+  let currentRoom = null;
+  let nextRoom = null;
+  let secretCrawlspace = null;
+  function createPortalVeilMaterial(isOverride, cycleIdx) {
+    const tint = isOverride
+      ? new THREE.Color(0xff4275)
+      : (cycleIdx >= 6 ? new THREE.Color(0xe66848) : new THREE.Color(0x5ce0ff));
+    return new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      uniforms: {
+        uTime: { value: 0 },
+        uColor: { value: tint }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        precision mediump float;
+        uniform float uTime;
+        uniform vec3 uColor;
+        varying vec2 vUv;
+        void main() {
+          vec2 p = floor(vUv * vec2(32.0, 44.0)) / vec2(32.0, 44.0) - 0.5;
+          float border = max(abs(p.x) * 2.0, abs(p.y) * 2.0);
+          float ring = sin(border * 24.0 - uTime * 7.0) * 0.5 + 0.5;
+          float edgeGlow = smoothstep(0.66, 0.99, border);
+          float alpha = 0.06 + edgeGlow * 0.58 + ring * 0.06;
+          vec3 c = mix(uColor * 0.8, vec3(1.0), edgeGlow * 0.55);
+          gl_FragColor = vec4(c, alpha);
+        }
+      `
+    });
+  }
+  function makeWallSubQuad(x0, x1, y0, y1, wallMat, wallDir) {
+    const w = x1 - x0;
+    const h = y1 - y0;
+    const geom = planeGeo(w, h);
+    const uvAttr = geom.attributes.uv;
+    const u0 = ((x0 + ROOM_HALF) / (ROOM_HALF * 2)) * 4.0;
+    const u1 = ((x1 + ROOM_HALF) / (ROOM_HALF * 2)) * 4.0;
+    const v0 = (y0 / ROOM_H) * 2.0;
+    const v1 = (y1 / ROOM_H) * 2.0;
+    uvAttr.setXY(0, u0, v1);
+    uvAttr.setXY(1, u1, v1);
+    uvAttr.setXY(2, u0, v0);
+    uvAttr.setXY(3, u1, v0);
+    uvAttr.needsUpdate = true;
+    const m = new THREE.Mesh(geom, wallMat);
+    m.position.set((x0 + x1) * 0.5, (y0 + y1) * 0.5, 0);
+    m.userData = { wallDir };
+    return m;
+  }
+  function addSlicedWallMeshes(group, dir, wallMat, cutouts) {
+    const xs = [-ROOM_HALF, ROOM_HALF];
+    const ys = [0, ROOM_H];
+    cutouts.forEach((c) => {
+      xs.push(Math.max(-ROOM_HALF, Math.min(ROOM_HALF, c.x0)));
+      xs.push(Math.max(-ROOM_HALF, Math.min(ROOM_HALF, c.x1)));
+      ys.push(Math.max(0, Math.min(ROOM_H, c.y0)));
+      ys.push(Math.max(0, Math.min(ROOM_H, c.y1)));
+    });
+    const uniqX = Array.from(new Set(xs.map((v) => Number(v.toFixed(4))))).sort((a, b) => a - b);
+    const uniqY = Array.from(new Set(ys.map((v) => Number(v.toFixed(4))))).sort((a, b) => a - b);
+    for (let i = 0; i < uniqX.length - 1; i++) {
+      const x0 = uniqX[i];
+      const x1 = uniqX[i + 1];
+      if (x1 - x0 < 0.01) continue;
+      for (let j = 0; j < uniqY.length - 1; j++) {
+        const y0 = uniqY[j];
+        const y1 = uniqY[j + 1];
+        if (y1 - y0 < 0.01) continue;
+        const cx = (x0 + x1) * 0.5;
+        const cy = (y0 + y1) * 0.5;
+        const insideCutout = cutouts.some(
+          (c) => cx > c.x0 + 0.002 && cx < c.x1 - 0.002 && cy > c.y0 + 0.002 && cy < c.y1 - 0.002
+        );
+        if (!insideCutout) {
+          group.add(makeWallSubQuad(x0, x1, y0, y1, wallMat, dir));
+        }
+      }
+    }
+  }
+  function overlapsHole(propX, propHalfW, holeSpec) {
+    if (!holeSpec) return false;
+    const hLeft = holeSpec.localX - holeSpec.w / 2 - 0.12;
+    const hRight = holeSpec.localX + holeSpec.w / 2 + 0.12;
+    return (propX + propHalfW > hLeft) && (propX - propHalfW < hRight);
+  }
+  function buildPerimeterWall(dir, wallMat, cycleIdx, holeSpec) {
+    const group = new THREE.Group();
+    const meta = WALL_META[dir];
+    if (dir === 'N') group.position.set(0, 0, -ROOM_HALF);
+    if (dir === 'S') group.position.set(0, 0, ROOM_HALF);
+    if (dir === 'E') group.position.set(ROOM_HALF, 0, 0);
+    if (dir === 'W') group.position.set(-ROOM_HALF, 0, 0);
+    group.rotation.y = meta.rotY;
+    const cutouts = [];
+    const hasIntactWindow = (dir === 'W') && !(holeSpec && holeSpec.isOverride);
+    if (hasIntactWindow) {
+      cutouts.push({
+        x0: WIN_LOCAL_X - WIN_W * 0.5,
+        x1: WIN_LOCAL_X + WIN_W * 0.5,
+        y0: WIN_CENTER_Y - WIN_H * 0.5,
+        y1: WIN_CENTER_Y + WIN_H * 0.5
+      });
+    }
+    let holeLeft = 0;
+    let holeRight = 0;
+    if (holeSpec) {
+      holeLeft = Math.max(-ROOM_HALF + 0.12, holeSpec.localX - holeSpec.w * 0.5);
+      holeRight = Math.min(ROOM_HALF - 0.12, holeSpec.localX + holeSpec.w * 0.5);
+      cutouts.push({
+        x0: holeLeft,
+        x1: holeRight,
+        y0: 0,
+        y1: holeSpec.h
+      });
+    }
+    addSlicedWallMeshes(group, dir, wallMat, cutouts);
+    if (holeSpec) {
+      const hh = holeSpec.h;
+      const spanW = holeRight - holeLeft;
+      const centerX = (holeLeft + holeRight) * 0.5;
+      if (holeSpec.includeTunnel) {
+        const rebarMat = lambert({ map: textures.rebarCut, side: THREE.DoubleSide });
+        const jambL = new THREE.Mesh(planeGeo(WALL_THICK, hh), rebarMat);
+        jambL.rotation.y = Math.PI / 2;
+        jambL.position.set(holeLeft, hh / 2, -WALL_THICK / 2);
+        group.add(jambL);
+        const jambR = new THREE.Mesh(planeGeo(WALL_THICK, hh), rebarMat);
+        jambR.rotation.y = -Math.PI / 2;
+        jambR.position.set(holeRight, hh / 2, -WALL_THICK / 2);
+        group.add(jambR);
+        const soffit = new THREE.Mesh(planeGeo(spanW, WALL_THICK), rebarMat);
+        soffit.rotation.x = Math.PI / 2;
+        soffit.position.set(centerX, hh, -WALL_THICK / 2);
+        group.add(soffit);
+        const floorStrip = new THREE.Mesh(planeGeo(spanW, WALL_THICK + 0.06), lambert({ map: textures.floor }));
+        floorStrip.rotation.x = -Math.PI / 2;
+        floorStrip.position.set(centerX, 0.002, -WALL_THICK / 2);
+        group.add(floorStrip);
+      }
+      if (holeSpec.includePortalFX) {
+        const fxGroup = new THREE.Group();
+        fxGroup.position.set(centerX, hh / 2, 0.015);
+        const shutterL = mkPlane(spanW / 2, hh, wallMat, -spanW / 4, 0, 0.01);
+        const shutterR = mkPlane(spanW / 2, hh, wallMat, spanW / 4, 0, 0.01);
+        fxGroup.add(shutterL, shutterR);
+        const frameColor = holeSpec.isOverride ? 0xff4275 : (cycleIdx >= 6 ? 0xe66848 : 0x5ce0ff);
+        const frameMat = basic({ color: frameColor });
+        const centerSeam = new THREE.Mesh(boxGeo(0.045, hh, 0.11), basic({ color: 0xffffff }));
+        fxGroup.add(centerSeam);
+        const ringGroup = new THREE.Group();
+        const barL = mkBox(0.075, hh + 0.07, 0.09, frameMat, -spanW / 2, 0, 0);
+        const barR = mkBox(0.075, hh + 0.07, 0.09, frameMat, spanW / 2, 0, 0);
+        const barT = mkBox(spanW + 0.14, 0.075, 0.09, frameMat, 0, hh / 2, 0);
+        const barB = mkBox(spanW + 0.14, 0.05, 0.09, frameMat, 0, -hh / 2 + 0.02, 0);
+        const veilMat = createPortalVeilMaterial(holeSpec.isOverride, cycleIdx);
+        const veilMesh = new THREE.Mesh(planeGeo(spanW, hh), veilMat);
+        ringGroup.add(barL, barR, barT, barB, veilMesh);
+        const portalLight = new THREE.PointLight(frameColor, 1.05, 8.5);
+        portalLight.position.set(0, 0, -WALL_THICK * 0.45);
+        ringGroup.add(portalLight);
+        fxGroup.add(ringGroup);
+        group.add(fxGroup);
+        group.userData.portalAnim = {
+          shutterL,
+          shutterR,
+          centerSeam,
+          ringGroup,
+          veilMat,
+          spanW
+        };
+      }
+    }
+    const signMesh = new THREE.Mesh(
+      planeGeo(1.45, 0.40),
+      lambert({ map: createWallSignTexture(meta.code, meta.label) })
+    );
+    signMesh.position.set(0, 3.24, 0.02);
+    group.add(signMesh);
+    if (dir === 'S') {
+      if (!overlapsHole(-4.4, 0.9, holeSpec)) {
+        const doorMesh = mkPlane(1.65, 2.52, lambert({ map: textures.blastDoor }), -4.4, 1.26, 0.03);
+        doorMesh.userData = { interactType: 'door' };
+        group.add(doorMesh);
+      }
+      if (!overlapsHole(4.2, 0.5, holeSpec)) {
+        const posterMesh = new THREE.Mesh(
+          planeGeo(0.84, 1.12),
+          lambert({ map: createPosterTexture(state.posterPeeled) })
+        );
+        posterMesh.position.set(4.2, 1.68, 0.025);
+        posterMesh.userData = { interactType: 'poster', meshRef: posterMesh };
+        group.add(posterMesh);
+      }
+    }
+    if (hasIntactWindow) {
+      const frameMat = lambert({ color: 0x262c2a });
+      const barTop = mkBox(WIN_W + 0.14, 0.08, 0.36, frameMat, WIN_LOCAL_X, WIN_CENTER_Y + WIN_H * 0.5 + 0.03, -0.14);
+      const barBot = mkBox(WIN_W + 0.16, 0.09, 0.40, frameMat, WIN_LOCAL_X, WIN_CENTER_Y - WIN_H * 0.5 - 0.03, -0.14);
+      const barL = mkBox(0.08, WIN_H, 0.36, frameMat, WIN_LOCAL_X - WIN_W * 0.5 - 0.03, WIN_CENTER_Y, -0.14);
+      const barR = mkBox(0.08, WIN_H, 0.36, frameMat, WIN_LOCAL_X + WIN_W * 0.5 + 0.03, WIN_CENTER_Y, -0.14);
+      group.add(barTop, barBot, barL, barR);
+      const glass = new THREE.Mesh(
+        planeGeo(WIN_W, WIN_H),
+        new THREE.MeshPhongMaterial({
+          color: 0x10221d,
+          emissive: 0x040907,
+          shininess: 95,
+          transparent: true,
+          opacity: 0.44
+        })
+      );
+      glass.position.set(WIN_LOCAL_X, WIN_CENTER_Y, 0.01);
+      glass.userData = { interactType: 'window' };
+      group.add(glass);
+      const boothGroup = new THREE.Group();
+      const boothShell = mkBox(2.5, 2.7, 1.82, lambert({ color: 0x1c201e, side: THREE.BackSide }), WIN_LOCAL_X, 1.35, -0.92, boothGroup);
+      const consoleDesk = mkBox(1.7, 0.12, 0.55, lambert({ color: 0x2a2f2d }), WIN_LOCAL_X, 1.12, -0.58);
+      consoleDesk.rotation.x = 0.22;
+      boothGroup.add(consoleDesk);
+      const deadMon = mkBox(0.42, 0.34, 0.32, lambert({ color: 0x383d3a }), WIN_LOCAL_X + 0.42, 1.34, -0.66);
+      deadMon.rotation.y = -0.25;
+      boothGroup.add(deadMon);
+      const emptyChair = mkBox(0.46, 0.85, 0.44, lambert({ color: 0x222625 }), WIN_LOCAL_X - 0.25, 0.65, -1.18);
+      emptyChair.rotation.y = 0.4;
+      boothGroup.add(emptyChair);
+      const recLedMat = basic({ color: 0xff2e2e });
+      const recDot = mkBox(0.055, 0.055, 0.055, recLedMat, WIN_LOCAL_X - 0.62, 1.96, -1.45, boothGroup);
+      const boothDimLight = new THREE.PointLight(0xff3b30, 0.48, 2.8);
+      boothDimLight.position.set(WIN_LOCAL_X - 0.45, 1.85, -1.15);
+      boothGroup.add(boothDimLight);
+      group.add(boothGroup);
+      group.userData.boothGroup = boothGroup;
+      group.userData.boothRec = { recLedMat, boothDimLight };
+    }
+    if (dir === 'N') {
+      const clockMesh = mkPlane(0.48, 0.48, basic({ map: clockTexture }), -2.6, 3.24, 0.025);
+      clockMesh.userData = { interactType: 'clock' };
+      group.add(clockMesh);
+      const hornGroup = new THREE.Group();
+      hornGroup.position.set(2.6, 3.22, 0.12);
+      const hornCone = new THREE.Mesh(
+        new THREE.ConeGeometry(0.22, 0.32, 8, 1, true),
+        lambert({ color: 0xc2c8c4, side: THREE.DoubleSide })
+      );
+      hornCone.rotation.x = Math.PI / 2;
+      hornCone.rotation.z = -0.2;
+      hornGroup.add(hornCone);
+      group.add(hornGroup);
+      group.userData.paHorn = hornGroup;
+    }
+    return group;
+  }
+  function createBlurredSilhouette(spec) {
+    const g = new THREE.Group();
+    g.position.set(spec.x, 0, spec.z);
+    g.rotation.y = spec.rotY || 0;
+    const sc = spec.scale || 1.0;
+    const isHeavy = Boolean(spec.heavySink);
+    const sinkWallMat = basic({
+      map: isHeavy ? textures.heavyLightSink : textures.lightSink,
+      transparent: true,
+      opacity: 0.0,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.CustomBlending,
+      blendEquation: THREE.ReverseSubtractEquation,
+      blendSrc: THREE.SrcAlphaFactor,
+      blendDst: THREE.OneFactor
+    });
+    const auraW = isHeavy ? 2.25 * sc : 3.5 * sc;
+    const auraH = isHeavy ? 2.55 * sc : 3.3 * sc;
+    const sinkAura = mkPlane(auraW, auraH, sinkWallMat, 0, 1.12 * sc, -0.10, 0, 0, g);
+    sinkAura.renderOrder = 2;
+    const sinkFloorMat = sinkWallMat.clone();
+    const floorSpan = isHeavy ? 2.35 * sc : 3.4 * sc;
+    const sinkFloor = new THREE.Mesh(planeGeo(floorSpan, floorSpan), sinkFloorMat);
+    sinkFloor.rotation.x = -Math.PI / 2;
+    sinkFloor.position.set(0, 0.018, 0);
+    sinkFloor.renderOrder = 2;
+    g.add(sinkFloor);
+    const layers = [];
+    for (let i = 0; i < 3; i++) {
+      const mat = basic({
+        map: spec.brightEyes ? textures.silhouetteBrightEyes : textures.silhouette,
+        transparent: true,
+        opacity: 0.0,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+      const plane = new THREE.Mesh(planeGeo(0.94 * sc, 1.90 * sc), mat);
+      plane.position.set((i - 1) * 0.04, 0.95 * sc, (i - 1) * 0.03);
+      plane.renderOrder = 3;
+      g.add(plane);
+      layers.push(plane);
+    }
+    g.userData = {
+      type: spec.type || 'room',
+      layers,
+      sinkWallMat,
+      sinkFloorMat,
+      fadeIn: 0.0,
+      phase: Math.random() * Math.PI * 2,
+      stareAccum: 0,
+      dissolving: false,
+      dissolveAlpha: 1.0,
+      vanished: false,
+      nextRelocateAt: state.time + 6.5 + Math.random() * 5.0
+    };
+    return g;
+  }
+  function buildInteractiveLocker(cycleIdx, interactables) {
+    const lockerGroup = new THREE.Group();
+    lockerGroup.position.set(-3.0, 0, 2.9);
+    lockerGroup.rotation.y = Math.PI;
+    const W = 0.78;
+    const H = 2.02;
+    const D = 0.56;
+    const steelOuter = lambert({ color: 0x455355 });
+    const steelInner = lambert({ color: 0x1d2324 });
+    const backP = mkBox(W, H, 0.04, steelOuter, 0, H / 2, -D / 2 + 0.02);
+    const leftP = mkBox(0.04, H, D, steelOuter, -W / 2 + 0.02, H / 2, 0);
+    const rightP = mkBox(0.04, H, D, steelOuter, W / 2 - 0.02, H / 2, 0);
+    const topP = mkBox(W, 0.04, D, steelOuter, 0, H - 0.02, 0);
+    const botP = mkBox(W, 0.06, D, steelOuter, 0, 0.03, 0);
+    const shelf = mkBox(W - 0.08, 0.03, D - 0.06, steelInner, 0, 1.24, -0.01);
+    lockerGroup.add(backP, leftP, rightP, topP, botP, shelf);
+    const unlocked = cycleIdx >= 4;
+    if (unlocked) {
+      const noteMesh = mkBox(0.24, 0.012, 0.18, basic({ color: 0xd8cfb8 }), 0.04, 1.265, 0.05);
+      noteMesh.rotation.y = 0.18;
+      noteMesh.userData = { interactType: 'lockerNote', lockerRef: lockerGroup };
+      lockerGroup.add(noteMesh);
+      interactables.push(noteMesh);
+      const inkStrip = new THREE.Mesh(planeGeo(0.18, 0.11), basic({ color: 0x3b352e }));
+      inkStrip.rotation.x = -Math.PI / 2;
+      inkStrip.position.set(0.04, 1.273, 0.05);
+      lockerGroup.add(inkStrip);
+      const oldBadge = mkBox(0.10, 0.01, 0.07, lambert({ color: 0x7c8f88 }), -0.17, 1.263, -0.04);
+      oldBadge.rotation.y = -0.35;
+      lockerGroup.add(oldBadge);
+    }
+    const doorPivot = new THREE.Group();
+    doorPivot.position.set(-W / 2 + 0.02, 0, D / 2 - 0.02);
+    const initialAngle = unlocked ? -0.16 : 0.0;
+    doorPivot.rotation.y = initialAngle;
+    const doorMesh = new THREE.Mesh(boxGeo(W - 0.04, H - 0.06, 0.035), lambert({ map: textures.lockerDoor }));
+    doorMesh.position.set((W - 0.04) / 2, H / 2, 0);
+    doorMesh.userData = { interactType: 'lockerDoor', lockerRef: lockerGroup };
+    doorPivot.add(doorMesh);
+    if (!unlocked) {
+      const padlock = mkBox(0.06, 0.08, 0.04, lambert({ color: 0x8a733e }), W - 0.12, 0.98, 0.035);
+      padlock.userData = { interactType: 'lockerDoor', lockerRef: lockerGroup };
+      doorPivot.add(padlock);
+      interactables.push(padlock);
+    }
+    lockerGroup.add(doorPivot);
+    interactables.push(doorMesh);
+    lockerGroup.userData = {
+      unlocked,
+      isOpen: false,
+      curAngle: initialAngle,
+      targetAngle: initialAngle,
+      rattleTimer: 0,
+      doorPivot
+    };
+    return lockerGroup;
+  }
+  function createFacilityRoom(cycleIdx, entryWallDir, entryLocalOffset) {
+    const cfg = CYCLE_CONFIG[Math.min(cycleIdx, CYCLE_CONFIG.length - 1)];
+    const root = new THREE.Group();
+    const wallTint = cycleIdx >= 5 ? 0xb4b8b2 : 0xcdd4ce;
+    const wallMat = lambert({
+      map: textures.wall,
+      color: wallTint,
+      side: THREE.DoubleSide
+    });
+    const floor = new THREE.Mesh(planeGeo(ROOM_HALF * 2, ROOM_HALF * 2), lambert({ map: textures.floor }));
+    floor.rotation.x = -Math.PI / 2;
+    root.add(floor);
+    const ceiling = new THREE.Mesh(planeGeo(ROOM_HALF * 2, ROOM_HALF * 2), lambert({ map: textures.ceiling }));
+    ceiling.rotation.x = Math.PI / 2;
+    ceiling.position.y = ROOM_H;
+    root.add(ceiling);
+    const walls = {};
+    ['N', 'S', 'E', 'W'].forEach((dir) => {
+      let holeSpec = null;
+      if (entryWallDir && dir === entryWallDir) {
+        holeSpec = {
+          localX: -entryLocalOffset,
+          w: PORTAL_W,
+          h: PORTAL_H,
+          includeTunnel: false,
+          includePortalFX: false
+        };
+      }
+      const wg = buildPerimeterWall(dir, wallMat, cycleIdx, holeSpec);
+      walls[dir] = wg;
+      root.add(wg);
+    });
+    const interactables = [];
+    const colliders = [];
+    root.traverse((obj) => {
+      if (obj.userData && obj.userData.interactType) {
+        interactables.push(obj);
+      }
+    });
+    const deskGroup = new THREE.Group();
+    deskGroup.position.set(-2.9, 0, -2.9);
+    const woodMat = lambert({ color: 0x5c4e41 });
+    const darkMetal = lambert({ color: 0x303634 });
+    const deskTop = new THREE.Mesh(boxGeo(1.55, 0.08, 0.85), woodMat);
+    deskTop.position.y = 0.78;
+    deskGroup.add(deskTop);
+    [[-0.7, -0.35], [0.7, -0.35], [-0.7, 0.35], [0.7, 0.35]].forEach(([lx, lz]) => {
+      const leg = mkBox(0.07, 0.76, 0.07, darkMetal, lx, 0.38, lz, deskGroup);
+    });
+    const crtBox = mkBox(0.54, 0.44, 0.42, lambert({ color: 0xa8a496 }), -0.12, 1.04, -0.04, deskGroup);
+    const canUnlockTerm = state.lockerNoteRead || cycleIdx >= 6;
+    const crtScreen = new THREE.Mesh(
+      planeGeo(0.45, 0.34),
+      basic({ map: createTerminalScreenTexture(cycleIdx, state.overrideArmed, canUnlockTerm) })
+    );
+    crtScreen.position.set(-0.12, 1.05, 0.175);
+    crtScreen.userData = { interactType: 'terminal', screenMesh: crtScreen };
+    crtBox.userData = { interactType: 'terminal', screenMesh: crtScreen };
+    deskGroup.add(crtScreen);
+    interactables.push(crtScreen, crtBox);
+    const mug = new THREE.Mesh(cylGeo(0.055, 0.05, 0.11, 8), lambert({ color: cycleIdx >= 4 ? 0x7c2a2a : 0xe0dbd0 }));
+    mug.position.set(cycleIdx === 0 ? 0.48 : -0.54, 0.875, 0.16);
+    deskGroup.add(mug);
+    root.add(deskGroup);
+    colliders.push({ minX: -3.72, maxX: -2.08, minZ: -3.38, maxZ: -2.42 });
+    const pylonGroup = new THREE.Group();
+    pylonGroup.position.set(2.9, 0, -2.9);
+    const pylonBody = new THREE.Mesh(boxGeo(0.58, 1.46, 0.50), lambert({ color: 0x45524d }));
+    pylonBody.position.y = 0.73;
+    pylonGroup.add(pylonBody);
+    const calibBtnMat = basic({
+      color: cfg.needCalib ? 0x45ff80 : 0x2d6e44
+    });
+    const calibBtn = mkBox(0.26, 0.17, 0.08, calibBtnMat, 0, 1.14, 0.26);
+    calibBtn.userData = { interactType: 'calibrator', btnMat: calibBtnMat };
+    pylonBody.userData = { interactType: 'calibrator', btnMat: calibBtnMat };
+    pylonGroup.add(calibBtn);
+    interactables.push(calibBtn, pylonBody);
+    if (cycleIdx >= 3) {
+      const noteTex = makePixelTexture(32, 24, (ctx, w, h) => {
+        fRect(ctx, '#e5dfd0', 0, 0, w, h);
+        ctx.save();
+        ctx.translate(3, 11);
+        ctx.rotate(-0.18);
+        fRect(ctx, '#262b30', 0, 0, 5, 2);
+        ctx.fillRect(8, -1, 4, 2);
+        ctx.fillRect(15, 1, 7, 2);
+        ctx.fillRect(3, 6, 6, 2);
+        ctx.fillRect(12, 5, 9, 2);
+        ctx.restore();
+      });
+      const backNote = new THREE.Mesh(planeGeo(0.21, 0.14), basic({ map: noteTex, side: THREE.DoubleSide }));
+      backNote.rotation.y = Math.PI;
+      backNote.rotation.z = -0.09;
+      backNote.position.set(0.04, 1.16, -0.256);
+      backNote.userData = { interactType: 'pylonBackNote' };
+      pylonGroup.add(backNote);
+      interactables.push(backNote);
+      const tapeStrip = new THREE.Mesh(planeGeo(0.08, 0.025), basic({ color: 0xc2ab6b, side: THREE.DoubleSide }));
+      tapeStrip.rotation.y = Math.PI;
+      tapeStrip.rotation.z = 0.05;
+      tapeStrip.position.set(0.04, 1.22, -0.258);
+      pylonGroup.add(tapeStrip);
+    }
+    root.add(pylonGroup);
+    colliders.push({ minX: 2.52, maxX: 3.28, minZ: -3.22, maxZ: -2.58 });
+    const lockerGroup = buildInteractiveLocker(cycleIdx, interactables);
+    root.add(lockerGroup);
+    if (cycleIdx >= 4) {
+      const fallenLock = mkBox(0.07, 0.035, 0.09, lambert({ color: 0x8a733e }), -3.28, 0.02, 2.52);
+      fallenLock.rotation.y = 0.65;
+      root.add(fallenLock);
+    }
+    colliders.push({ minX: -3.45, maxX: -2.55, minZ: 2.55, maxZ: 3.25 });
+    const shoeCount = Math.min(4, 1 + Math.floor(cycleIdx / 2));
+    for (let s = 0; s < shoeCount; s++) {
+      const shoePair = new THREE.Mesh(boxGeo(0.22, 0.09, 0.26), lambert({ color: 0x262321 }));
+      shoePair.position.set(-2.35 + s * 0.30, 0.045, 3.05 - (s % 2) * 0.20);
+      root.add(shoePair);
+    }
+    const rack = mkBox(0.76, 1.82, 0.58, lambert({ color: 0x363b3a }), 3.0, 0.91, 2.9);
+    rack.userData = { interactType: 'taperack' };
+    root.add(rack);
+    interactables.push(rack);
+    const reel1 = new THREE.Mesh(cylGeo(0.15, 0.15, 0.04, 10), lambert({ color: 0x9ca39e }));
+    reel1.rotation.z = Math.PI / 2;
+    reel1.position.set(2.60, 1.36, 2.74);
+    const reel2 = reel1.clone();
+    reel2.position.set(2.60, 1.36, 3.06);
+    root.add(reel1, reel2);
+    colliders.push({ minX: 2.55, maxX: 3.45, minZ: 2.55, maxZ: 3.25 });
+    const lampCoords = [[-2.6, -2.6], [2.6, -2.6], [-2.6, 2.6], [2.6, 2.6]];
+    const lb = cfg.lightLevel;
+    lampCoords.forEach(([lx, lz], idx) => {
+      const panelMat = basic({
+        color: new THREE.Color(
+          0.92 * lb + (cycleIdx >= 6 && idx === 0 ? 0.18 : 0),
+          0.96 * lb,
+          0.90 * lb
+        )
+      });
+      const panel = new THREE.Mesh(planeGeo(1.35, 0.50), panelMat);
+      panel.rotation.x = Math.PI / 2;
+      panel.position.set(lx, ROOM_H - 0.015, lz);
+      root.add(panel);
+    });
+    const ambient = new THREE.AmbientLight(
+      cycleIdx >= 6 ? 0x767072 : 0x9aa69e,
+      0.48 + 0.42 * lb
+    );
+    root.add(ambient);
+    const mainPoint = new THREE.PointLight(
+      cycleIdx >= 6 ? 0xffd5c8 : 0xf2fff6,
+      0.42 + 0.65 * lb,
+      20,
+      1.15
+    );
+    mainPoint.position.set(0, 3.4, 0);
+    root.add(mainPoint);
+    const silhouettes = [];
+    root.userData = {
+      cycleIdx,
+      wallMat,
+      walls,
+      interactables,
+      colliders,
+      silhouettes,
+      lockerGroup,
+      ambient,
+      mainPoint,
+      baseAmbient: 0.48 + 0.42 * lb,
+      baseMainPoint: 0.42 + 0.65 * lb,
+      reels: [reel1, reel2],
+      crtScreen
+    };
+    return root;
+  }
+  function makeTapeSpineTexture(digitChar) {
+    return makePixelTexture(32, 48, (ctx, w, h) => {
+      fRect(ctx, '#dfd5be', 0, 0, w, h);
+      fRect(ctx, '#8c2d25', 0, 0, w, 6);
+      fRect(ctx, '#8e8674', 4, 10, w - 8, 2);
+      ctx.fillRect(4, 41, w - 8, 2);
+      if (digitChar !== null) {
+        ctx.save();
+        ctx.translate(8, 35);
+        ctx.rotate(-0.06);
+        ctx.fillStyle = '#171513';
+        ctx.font = 'bold 26px monospace';
+        ctx.fillText(digitChar, 0, 0);
+        ctx.restore();
+      } else {
+        fRect(ctx, '#a89f8c', 6, 19, w - 12, 2);
+        ctx.fillRect(6, 26, w - 14, 2);
+      }
+    });
+  }
+  function createSecretTapeHollow() {
+    const g = new THREE.Group();
+    g.position.set(-ROOM_HALF - WALL_THICK - 2.2, 0, -WIN_LOCAL_X);
+    const box = new THREE.Mesh(boxGeo(4.4, 2.8, 3.2), lambert({ map: textures.rebarCut, side: THREE.BackSide }));
+    box.position.y = 1.4;
+    g.add(box);
+    const bulb = new THREE.PointLight(0xffb899, 1.55, 10);
+    bulb.position.set(-0.6, 2.35, 0);
+    g.add(bulb);
+    const fill = new THREE.AmbientLight(0x756c66, 0.68);
+    g.add(fill);
+    const numberedTapes = {
+      '3,-3': '6',
+      '1,0':  '0',
+      '4,2':  '3',
+      '2,4':  '2'
+    };
+    const plainSpineMat = basic({ map: makeTapeSpineTexture(null) });
+    const tapeMat = lambert({ color: 0x202426 });
+    const shelfMat = lambert({ color: 0x3b3f3d });
+    for (let row = 0; row < 5; row++) {
+      const shelfY = 0.34 + row * 0.44;
+      const plank = mkBox(0.28, 0.03, 2.95, shelfMat, -2.02, shelfY, 0, g);
+      for (let col = -5; col <= 5; col++) {
+        const key = `${row},${col}`;
+        const digit = Object.prototype.hasOwnProperty.call(numberedTapes, key) ? numberedTapes[key] : null;
+        const cy = shelfY + 0.185;
+        const cz = col * 0.255;
+        const cassette = mkBox(0.19, 0.33, 0.21, tapeMat, -2.00, cy, cz, g);
+        const spineMat = digit !== null
+          ? basic({ map: makeTapeSpineTexture(digit) })
+          : plainSpineMat;
+        const lbl = mkPlane(0.17, 0.27, spineMat, -1.90, cy, cz);
+        lbl.rotation.y = Math.PI / 2;
+        g.add(lbl);
+      }
+    }
+    const autoDeck = mkBox(0.65, 0.88, 0.56, lambert({ color: 0x525854 }), -0.85, 0.44, -1.12, g);
+    return g;
+  }
+  function spawnRearSilhouettesNow() {
+    if (!currentRoom) return;
+    const camForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    camForward.y = 0;
+    camForward.normalize();
+    if (state.pendingSpawn.windowShadow) {
+      const winPos = new THREE.Vector3(-6.72, 0, -WIN_LOCAL_X);
+      const toWin = new THREE.Vector3(winPos.x - state.px, 0, winPos.z - state.pz).normalize();
+      if (camForward.dot(toWin) < 0.35) {
+        const winSil = createBlurredSilhouette({
+          x: -6.72,
+          z: -WIN_LOCAL_X,
+          rotY: Math.PI / 2,
+          type: 'window',
+          scale: 1.03
+        });
+        currentRoom.add(winSil);
+        currentRoom.userData.silhouettes.push(winSil);
+      }
+    }
+    const count = state.pendingSpawn.roomCount;
+    if (count <= 0) return;
+    const candidates = SHADOW_SPOTS.filter((sp) => {
+      const dx = sp.x - state.px;
+      const dz = sp.z - state.pz;
+      const dist = Math.hypot(dx, dz);
+      if (dist < 3.6) return false;
+      const dirToSpot = new THREE.Vector3(dx / dist, 0, dz / dist);
+      return camForward.dot(dirToSpot) < -0.12;
+    });
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = candidates[i];
+      candidates[i] = candidates[j];
+      candidates[j] = tmp;
+    }
+    const chosen = candidates.slice(0, count);
+    chosen.forEach((sp) => {
+      const yawToPlayer = Math.atan2(state.px - sp.x, state.pz - sp.z);
+      const sil = createBlurredSilhouette({
+        x: sp.x,
+        z: sp.z,
+        rotY: yawToPlayer,
+        type: 'room',
+        scale: 1.04
+      });
+      currentRoom.add(sil);
+      currentRoom.userData.silhouettes.push(sil);
+    });
+  }
+  const raycaster = new THREE.Raycaster();
+  function replaceRoomWall(room, dir, holeSpec) {
+    const oldWall = room.userData.walls[dir];
+    if (oldWall) {
+      room.remove(oldWall);
+    }
+    const newWall = buildPerimeterWall(dir, room.userData.wallMat, room.userData.cycleIdx, holeSpec);
+    room.userData.walls[dir] = newWall;
+    room.add(newWall);
+    const list = [];
+    room.traverse((obj) => {
+      if (obj.userData && obj.userData.interactType) {
+        list.push(obj);
+      }
+    });
+    room.userData.interactables = list;
+  }
+  function tryDeployPortal() {
+    if (!state.started || state.pausedForModal || state.ended || state.endingSeq.active || state.inLostVoid || state.inBedroom || state.inTransitionMonologue) return;
+    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+    const allHits = raycaster.intersectObjects(currentRoom.children, true);
+    if (allHits.length === 0) return;
+    const firstHit = allHits[0];
+    if (state.overrideArmed && firstHit.distance < 12.5) {
+      const ud = firstHit.object.userData || {};
+      if (ud.interactType === 'window' || ud.wallDir === 'W') {
+        openSecretWindowRift();
+        return;
+      }
+    }
+    if (firstHit.object.userData && firstHit.object.userData.interactType === 'door') {
+      if (state.maxPowerArmed) {
+        openPureWhiteBlastDoor();
+        return;
+      }
+      playUiBeep(220, 0.12);
+      triggerBroadcast('“操作提示：防爆门表面涂有抗相位镀层，请将准星对准普通混凝土墙面展开传送门。”', false);
+      return;
+    }
+    if (firstHit.object.userData && firstHit.object.userData.interactType === 'window' && !state.overrideArmed) {
+      playUiBeep(220, 0.12);
+      triggerBroadcast('“操作驳回：单向观察窗禁止展开常规裂隙。请对准混凝土承重墙面。”', false);
+      return;
+    }
+    const cfg = CYCLE_CONFIG[Math.min(state.cycle, CYCLE_CONFIG.length - 1)];
+    if (cfg.needCalib && !state.calibratedThisCycle) {
+      playUiBeep(230, 0.14);
+      triggerBroadcast('“操作驳回：本轮尚未录入心率数据。请先前往东北角按下绿色【生理校准仪 [E]】，再展开传送门。”', false);
+      return;
+    }
+    let wallHit = null;
+    for (let i = 0; i < allHits.length; i++) {
+      const ud = allHits[i].object.userData;
+      if (ud && ud.wallDir && allHits[i].distance < 13.5) {
+        wallHit = { dir: ud.wallDir, point: allHits[i].point };
+        break;
+      }
+    }
+    if (!wallHit) {
+      playUiBeep(260, 0.07);
+      return;
+    }
+    const dir = wallHit.dir;
+    const meta = WALL_META[dir];
+    const rawTangent = wallHit.point.x * meta.tx + wallHit.point.z * meta.tz;
+    const maxSpan = ROOM_HALF - PORTAL_W * 0.5 - 0.18;
+    let maxPosSpan = maxSpan;
+    if (dir === 'W') {
+      if (rawTangent > WIN_LOCAL_X - WIN_W * 0.5 - 0.25) {
+        maxPosSpan = WIN_LOCAL_X - WIN_W * 0.5 - PORTAL_W * 0.5 - 0.14;
+      }
+    }
+    let minNegSpan = -maxSpan;
+    if (dir === 'E') {
+      minNegSpan = -(WIN_LOCAL_X - WIN_W * 0.5 - PORTAL_W * 0.5 - 0.14);
+    }
+    const exactCenterlineX = Math.max(minNegSpan, Math.min(maxPosSpan, rawTangent));
+    if (state.portal.active) {
+      replaceRoomWall(currentRoom, state.portal.dir, null);
+      if (nextRoom) {
+        worldScene.remove(nextRoom);
+        nextRoom = null;
+      }
+    }
+    replaceRoomWall(currentRoom, dir, {
+      localX: exactCenterlineX,
+      w: PORTAL_W,
+      h: PORTAL_H,
+      includeTunnel: true,
+      includePortalFX: true,
+      isOverride: false
+    });
+    const nextCycleIdx = state.cycle + 1;
+    nextRoom = createFacilityRoom(nextCycleIdx, meta.opp, exactCenterlineX);
+    nextRoom.position.set(meta.nx * NEXT_DIST, 0, meta.nz * NEXT_DIST);
+    if (dir === 'E' && nextRoom.userData.walls.W && nextRoom.userData.walls.W.userData.boothGroup) {
+      nextRoom.userData.walls.W.userData.boothGroup.visible = false;
+    }
+    worldScene.add(nextRoom);
+    state.portal.active = true;
+            state.portal.isSecretWindow = false;
+    state.portal.isPureWhiteExit = false;
+    state.portal.dir = dir;
+    state.portal.offset = exactCenterlineX;
+    state.portal.progress = 0.01;
+    state.portal.crossedHalfway = false;
+    handGroup.position.z = -0.31;
+    playPortalUnfoldSound(false);
+  }
+  let lostVoidGroup = null;
+  let bedroomGroup = null;
+  function openPureWhiteBlastDoor() {
+    if (state.portal.active && nextRoom) {
+      replaceRoomWall(currentRoom, state.portal.dir, null);
+      worldScene.remove(nextRoom);
+      nextRoom = null;
+    }
+    if (secretCrawlspace) {
+      worldScene.remove(secretCrawlspace);
+      secretCrawlspace = null;
+    }
+    replaceRoomWall(currentRoom, 'S', {
+      localX: -4.4,
+      w: 1.66,
+      h: 2.52,
+      includeTunnel: false,
+      includePortalFX: false,
+      isOverride: true
+    });
+    const sWall = currentRoom.userData.walls.S;
+    const whiteExitGroup = new THREE.Group();
+    whiteExitGroup.position.set(-4.4, 1.26, -0.02);
+    const whiteBox = new THREE.Mesh(boxGeo(1.74, 2.58, 0.6), basic({ color: 0xffffff, side: THREE.BackSide }));
+    whiteBox.position.z = -0.28;
+    whiteExitGroup.add(whiteBox);
+    const whiteGlowPlane = new THREE.Mesh(planeGeo(1.68, 2.54), basic({ color: 0xffffff, side: THREE.DoubleSide }));
+    whiteGlowPlane.position.z = 0.01;
+    whiteExitGroup.add(whiteGlowPlane);
+    const exitSpillLight = new THREE.PointLight(0xffffff, 1.85, 10.0);
+    exitSpillLight.position.set(0, 0.2, 0.65);
+    whiteExitGroup.add(exitSpillLight);
+    sWall.add(whiteExitGroup);
+    state.portal.active = true;
+            state.portal.isSecretWindow = false;
+    state.portal.isPureWhiteExit = true;
+    state.portal.dir = 'S';
+    state.portal.offset = -4.4;
+    state.portal.progress = 1.0;
+    state.portal.crossedHalfway = false;
+    handGroup.position.z = -0.27;
+    playPortalUnfoldSound(true);
+  }
+  function enterLostVoid() {
+    state.inLostVoid = true;
+    state.lostTimer = 0;
+    state.portal.active = false;
+    state.pendingSpawn.active = false;
+    stopLight8BitBGM(false);
+    if (subTimerId) clearInterval(subTimerId);
+    subtitleBar.classList.remove('active');
+    aimPromptEl.classList.remove('visible');
+    if (audio.master) {
+      audio.master.gain.value = 0;
+    }
+    if (currentRoom) {
+      worldScene.remove(currentRoom);
+      currentRoom = null;
+    }
+    if (nextRoom) {
+      worldScene.remove(nextRoom);
+      nextRoom = null;
+    }
+    if (lostVoidGroup) worldScene.remove(lostVoidGroup);
+    worldScene.background = new THREE.Color(0x000000);
+    worldScene.fog.color.setHex(0x000000);
+    worldScene.fog.density = 0.0;
+    flashLight.intensity = 0.0;
+    handGroup.visible = false;
+    postUniforms.uDesat.value = 0.0;
+    postUniforms.uDistort.value = 0.0;
+    postUniforms.uNoise.value = 0.0;
+    postUniforms.uPulseFlash.value = 0.0;
+    state.px = 0;
+    state.pz = 0;
+    lostVoidGroup = new THREE.Group();
+    for (let i = 0; i < 34; i++) {
+      const angle = (i / 34) * Math.PI * 2 + (i % 3) * 0.14;
+      const radius = 1.85 + (i % 5) * 0.85;
+      const sx = Math.sin(angle) * radius;
+      const sz = Math.cos(angle) * radius;
+      const sil = createBlurredSilhouette({
+        x: sx,
+        z: sz,
+        rotY: Math.atan2(-sx, -sz),
+        type: 'void',
+        scale: 1.0 + (i % 3) * 0.04,
+        brightEyes: true
+      });
+      sil.userData.fadeIn = 1.0;
+      sil.userData.layers.forEach((l, idx) => {
+        l.material.opacity = idx === 0 ? 0.96 : 0.45;
+      });
+      lostVoidGroup.add(sil);
+    }
+    worldScene.add(lostVoidGroup);
+  }
+  function createSunlitBedroom() {
+    const g = new THREE.Group();
+    const BW = 6.8;
+    const BD = 6.8;
+    const BH = 2.85;
+    const floor = new THREE.Mesh(planeGeo(BW, BD), lambert({ map: textures.woodFloor }));
+    floor.rotation.x = -Math.PI / 2;
+    g.add(floor);
+    const rug = new THREE.Mesh(planeGeo(2.55, 1.95), lambert({ map: textures.bedroomRug }));
+    rug.rotation.x = -Math.PI / 2;
+    rug.position.set(0.35, 0.004, 0.45);
+    g.add(rug);
+    const ceil = new THREE.Mesh(planeGeo(BW, BD), basic({ color: 0xf6f3ea }));
+    ceil.rotation.x = Math.PI / 2;
+    ceil.position.y = BH;
+    g.add(ceil);
+    const wallMat = lambert({ map: textures.bedroomWall, side: THREE.DoubleSide });
+    const nW = mkPlane(BW, BH, wallMat, 0, BH / 2, -BD / 2);
+    const sW = new THREE.Mesh(planeGeo(BW, BH), wallMat);
+    sW.rotation.y = Math.PI;
+    sW.position.set(0, BH / 2, BD / 2);
+    const wW = new THREE.Mesh(planeGeo(BD, BH), wallMat);
+    wW.rotation.y = Math.PI / 2;
+    wW.position.set(-BW / 2, BH / 2, 0);
+    const eW = new THREE.Mesh(planeGeo(BD, BH), wallMat);
+    eW.rotation.y = -Math.PI / 2;
+    eW.position.set(BW / 2, BH / 2, 0);
+    g.add(nW, sW, wW, eW);
+    const doorTrim = mkBox(1.18, 2.24, 0.05, lambert({ color: 0x5c3e28 }), 1.75, 1.12, BD / 2 - 0.015);
+    const bedDoor = new THREE.Mesh(planeGeo(1.04, 2.14), lambert({ map: textures.bedroomDoor }));
+    bedDoor.rotation.y = Math.PI;
+    bedDoor.position.set(1.75, 1.07, BD / 2 - 0.045);
+    g.add(doorTrim, bedDoor);
+    const wardrobeBody = mkBox(0.68, 2.18, 1.46, lambert({ color: 0x694930 }), -2.98, 1.09, -1.35);
+    const wardrobeCrown = mkBox(0.74, 0.07, 1.54, lambert({ color: 0x543822 }), -2.98, 2.21, -1.35);
+    const wardrobeDoors = new THREE.Mesh(planeGeo(1.40, 2.08), lambert({ map: textures.wardrobeFront }));
+    wardrobeDoors.rotation.y = Math.PI / 2;
+    wardrobeDoors.position.set(-2.635, 1.09, -1.35);
+    g.add(wardrobeBody, wardrobeCrown, wardrobeDoors);
+    const skyPane = new THREE.Mesh(planeGeo(1.9, 1.35), basic({ color: 0xfffdf2 }));
+    skyPane.rotation.y = -Math.PI / 2;
+    skyPane.position.set(BW / 2 - 0.02, 1.62, 0.25);
+    g.add(skyPane);
+    const mullionMat = lambert({ color: 0xd8cbb5 });
+    const mulV = mkBox(0.05, 1.4, 0.06, mullionMat, BW / 2 - 0.03, 1.62, 0.25);
+    const mulH = mkBox(0.05, 0.06, 1.95, mullionMat, BW / 2 - 0.03, 1.62, 0.25);
+    const sill = mkBox(0.14, 0.05, 2.12, mullionMat, BW / 2 - 0.05, 0.92, 0.25);
+    g.add(mulV, mulH, sill);
+    const curtainMat = lambert({ color: 0xe6dfd3 });
+    [-0.86, 1.36].forEach((cz) => {
+      const drape = mkBox(0.10, 1.85, 0.34, curtainMat, BW / 2 - 0.06, 1.52, cz, g);
+    });
+    const beamMat = basic({
+      color: 0xfff3c4,
+      transparent: true,
+      opacity: 0.20,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending
+    });
+    [-0.3, 0.25, 0.8].forEach((zOff) => {
+      const beam = mkPlane(3.4, 1.15, beamMat, 1.75, 1.05, zOff);
+      beam.rotation.z = 0.46;
+      beam.rotation.y = 0.08;
+      beam.renderOrder = 1;
+      g.add(beam);
+    });
+    const sunPatchMat = basic({ color: 0xfff5cc, transparent: true, opacity: 0.35, depthWrite: false });
+    const sunPatch = new THREE.Mesh(planeGeo(2.55, 1.95), sunPatchMat);
+    sunPatch.renderOrder = 1;
+    sunPatch.rotation.x = -Math.PI / 2;
+    sunPatch.position.set(1.05, 0.007, 0.35);
+    g.add(sunPatch);
+    const bedFrame = mkBox(1.72, 0.38, 2.22, lambert({ color: 0x7c583a }), -2.15, 0.19, 1.80);
+    const headboard = mkBox(1.74, 0.98, 0.12, lambert({ color: 0x63432a }), -2.15, 0.49, 2.88);
+    const bottomSheet = mkBox(1.60, 0.18, 2.08, lambert({ color: 0xf2efe8 }), -2.15, 0.44, 1.78);
+    g.add(bedFrame, headboard, bottomSheet);
+    const quiltMainMat = lambert({ color: 0x6688ab });
+    const quiltFoldMat = lambert({ color: 0x7a9cc0 });
+    const quiltLumps = [
+      { x: -2.28, y: 0.56, z: 1.38, w: 1.32, h: 0.14, d: 1.22, rx: 0.04, ry: 0.14, rz: -0.06, m: quiltMainMat },
+      { x: -1.96, y: 0.62, z: 1.12, w: 0.92, h: 0.17, d: 0.78, rx: -0.11, ry: -0.28, rz: 0.12, m: quiltFoldMat },
+      { x: -2.35, y: 0.64, z: 1.72, w: 0.76, h: 0.15, d: 0.66, rx: 0.14, ry: 0.36, rz: -0.09, m: quiltFoldMat },
+      { x: -1.52, y: 0.47, z: 1.24, w: 0.42, h: 0.26, d: 0.85, rx: 0.05, ry: 0.18, rz: -0.42, m: quiltMainMat }
+    ];
+    quiltLumps.forEach((ql) => {
+      const m = mkBox(ql.w, ql.h, ql.d, ql.m, ql.x, ql.y, ql.z);
+      m.rotation.set(ql.rx, ql.ry, ql.rz);
+      g.add(m);
+    });
+    const pillowMat = lambert({ color: 0xfaf8f2 });
+    const pil1 = mkBox(0.68, 0.13, 0.42, pillowMat, -2.46, 0.58, 2.50);
+    pil1.rotation.y = 0.12;
+    const pil2 = mkBox(0.66, 0.12, 0.40, pillowMat, -1.76, 0.57, 2.44);
+    pil2.rotation.set(0.06, -0.22, 0.05);
+    g.add(pil1, pil2);
+    const nightStand = mkBox(0.48, 0.54, 0.44, lambert({ color: 0x755236 }), -0.98, 0.27, 2.95);
+    const lampShade = new THREE.Mesh(
+      new THREE.ConeGeometry(0.15, 0.20, 8),
+      basic({ color: 0xfff0c8 })
+    );
+    lampShade.position.set(-0.98, 0.72, 2.95);
+    g.add(nightStand, lampShade);
+    const plantGroup = new THREE.Group();
+    plantGroup.position.set(2.68, 0, -2.65);
+    const pot = new THREE.Mesh(cylGeo(0.24, 0.18, 0.40, 10), lambert({ color: 0xb55d3d }));
+    pot.position.y = 0.20;
+    const potRim = new THREE.Mesh(cylGeo(0.26, 0.25, 0.06, 10), lambert({ color: 0xc46847 }));
+    potRim.position.y = 0.39;
+    const soil = new THREE.Mesh(cylGeo(0.22, 0.22, 0.03, 10), lambert({ color: 0x3b2a1e }));
+    soil.position.y = 0.405;
+    plantGroup.add(pot, potRim, soil);
+    const stemMat = lambert({ color: 0x3b6e38 });
+    const leafMatA = lambert({ color: 0x4b8c42, side: THREE.DoubleSide });
+    const leafMatB = lambert({ color: 0x387332, side: THREE.DoubleSide });
+    for (let lf = 0; lf < 8; lf++) {
+      const ang = (lf / 8) * Math.PI * 2 + 0.3;
+      const h = 0.62 + (lf % 3) * 0.22;
+      const stem = new THREE.Mesh(cylGeo(0.015, 0.02, h, 5), stemMat);
+      stem.position.set(Math.cos(ang) * 0.05, 0.38 + h * 0.45, Math.sin(ang) * 0.05);
+      stem.rotation.z = -Math.cos(ang) * 0.24;
+      stem.rotation.x = Math.sin(ang) * 0.24;
+      plantGroup.add(stem);
+      const leaf = new THREE.Mesh(
+        boxGeo(0.24, 0.02, 0.38),
+        lf % 2 === 0 ? leafMatA : leafMatB
+      );
+      leaf.position.set(Math.cos(ang) * 0.22, 0.38 + h * 0.88, Math.sin(ang) * 0.22);
+      leaf.rotation.y = -ang + Math.PI / 2;
+      leaf.rotation.x = 0.42;
+      plantGroup.add(leaf);
+    }
+    g.add(plantGroup);
+    const deskTop = mkBox(1.55, 0.07, 0.78, lambert({ color: 0x8c6645 }), 0.25, 0.76, -2.85, g);
+    [[-0.58, -3.16], [1.08, -3.16], [-0.58, -2.54], [1.08, -2.54]].forEach(([lx, lz]) => {
+      const leg = mkBox(0.06, 0.74, 0.06, lambert({ color: 0x694b32 }), lx, 0.37, lz, g);
+    });
+    const chairSeat = mkBox(0.46, 0.06, 0.46, lambert({ color: 0x4b5866 }), 0.75, 0.46, -2.18);
+    chairSeat.rotation.y = -0.38;
+    const chairBack = mkBox(0.46, 0.48, 0.06, lambert({ color: 0x4b5866 }), 0.83, 0.72, -1.98);
+    chairBack.rotation.y = -0.38;
+    g.add(chairSeat, chairBack);
+    const pcMonCase = mkBox(0.56, 0.42, 0.16, lambert({ color: 0xdad6c8 }), 0.20, 1.02, -2.92, g);
+    const pcScreenTex = makePixelTexture(128, 96, (ctx, w, h) => {
+      fRect(ctx, '#1b4f72', 0, 0, w, h);
+      fRect(ctx, '#f4f6f7', 12, 16, 104, 62);
+      ctx.fillStyle = '#1b2631';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.fillText('新邮件 (1)', 20, 34);
+      ctx.font = '9px sans-serif';
+      ctx.fillText('发件人: 恒界人事部', 20, 50);
+      ctx.fillText('请走近电脑前查阅', 20, 66);
+    });
+    const pcScreen = mkPlane(0.48, 0.34, basic({ map: pcScreenTex }), 0.20, 1.02, -2.835, 0, 0, g);
+    const warmAmb = new THREE.AmbientLight(0xfff5e4, 0.88);
+    g.add(warmAmb);
+    const sunLight = new THREE.PointLight(0xfffae0, 1.25, 18);
+    sunLight.position.set(2.6, 2.2, 0.3);
+    g.add(sunLight);
+    g.userData = {
+      pcScreen,
+      warmAmb,
+      sunLight,
+      beamMat,
+      sunPatchMat,
+      colliders: [
+        { minX: -3.10, maxX: -1.22, minZ: 0.62, maxZ: 3.15 },
+        { minX: -3.38, maxX: -2.56, minZ: -2.15, maxZ: -0.55 },
+        { minX: 2.32,  maxX: 3.15,  minZ: -3.10, maxZ: -2.25 },
+        { minX: -0.60, maxX: 1.15,  minZ: -3.30, maxZ: -2.38 }
+      ]
+    };
+    return g;
+  }
+  function startTrueEscapeTransition() {
+    if (state.inTransitionMonologue || state.inBedroom || state.ended) return;
+    state.inTransitionMonologue = true;
+    state.portal.active = false;
+    state.pendingSpawn.active = false;
+    stopLight8BitBGM(false);
+    if (subTimerId) clearInterval(subTimerId);
+    subtitleBar.classList.remove('active');
+    aimPromptEl.classList.remove('visible');
+    $('hud-top').style.display = 'none';
+    if (audio.master) {
+      audio.master.gain.value = 0;
+    }
+    blackoutCurtain.style.opacity = '1';
+    monologueText.textContent = '';
+    const line = '我发誓……我再也不会来做这种鬼工作了';
+    let charIdx = 0;
+    const typeId = setInterval(() => {
+      if (charIdx < line.length) {
+        monologueText.textContent += line[charIdx];
+        charIdx++;
+      } else {
+        clearInterval(typeId);
+        setTimeout(() => {
+          monologueText.textContent = '';
+          enterSunlitBedroom();
+        }, 1350);
+      }
+    }, 125);
+  }
+  function enterSunlitBedroom() {
+    if (currentRoom) {
+      worldScene.remove(currentRoom);
+      currentRoom = null;
+    }
+    if (nextRoom) {
+      worldScene.remove(nextRoom);
+      nextRoom = null;
+    }
+    if (secretCrawlspace) {
+      worldScene.remove(secretCrawlspace);
+      secretCrawlspace = null;
+    }
+    bedroomGroup = createSunlitBedroom();
+    worldScene.add(bedroomGroup);
+    worldScene.background = new THREE.Color(0xdcecf5);
+    worldScene.fog.color.setHex(0xfff8eb);
+    worldScene.fog.density = 0.004;
+    flashLight.intensity = 0.0;
+    handGroup.visible = false;
+    postUniforms.uDesat.value = 0.0;
+    postUniforms.uDistort.value = 0.0;
+    postUniforms.uNoise.value = 0.01;
+    postUniforms.uPulseFlash.value = 0.0;
+    postUniforms.uBlackout.value = 0.0;
+    state.px = -0.55;
+    state.py = 1.64;
+    state.pz = 1.75;
+    state.yaw = -0.32;
+    state.pitch = -0.04;
+    state.inTransitionMonologue = false;
+    state.inBedroom = true;
+    state.bedroomShadow = null;
+    state.bedroomSeq = 0;
+    state.bedroomTimer = 0;
+    if (audio.ready && !state.muted) {
+      audio.master.gain.value = 0.55;
+      if (audio.staticGain) audio.staticGain.gain.value = 0.0;
+      audio.humOsc1.frequency.value = 0.01;
+      audio.humOsc2.frequency.value = 0.01;
+      play8BitPianoNote(659.25, 0.45, 0.14, false);
+      setTimeout(() => play8BitPianoNote(783.99, 0.65, 0.14, false), 220);
+    }
+    blackoutCurtain.style.transition = 'opacity 1.2s ease';
+    blackoutCurtain.style.opacity = '0';
+    setTimeout(() => {
+      blackoutCurtain.style.transition = '';
+      if (state.inBedroom && !state.ended) {
+        subtitleBar.classList.remove('hijacked');
+        subSpeakerLabel.textContent = '公寓卧室 · 清晨 08:30';
+        subChannelTag.textContent = '桌面电脑提示音';
+        subtitleText.textContent = '书桌上的电脑屏幕亮着，过去电脑桌旁看看吧。';
+        subtitleBar.classList.add('active');
+      }
+    }, 700);
+  }
+  function openSecretWindowRift() {
+    if (state.portal.active && nextRoom) {
+      replaceRoomWall(currentRoom, state.portal.dir, null);
+      worldScene.remove(nextRoom);
+      nextRoom = null;
+    }
+    if (secretCrawlspace) {
+      worldScene.remove(secretCrawlspace);
+    }
+    replaceRoomWall(currentRoom, 'W', {
+      localX: WIN_LOCAL_X,
+      w: 2.0,
+      h: 2.55,
+      includeTunnel: true,
+      includePortalFX: true,
+      isOverride: true
+    });
+    secretCrawlspace = createSecretTapeHollow();
+    worldScene.add(secretCrawlspace);
+    state.portal.active = true;
+            state.portal.isSecretWindow = true;
+    state.portal.isPureWhiteExit = false;
+    state.portal.dir = 'W';
+    state.portal.offset = WIN_LOCAL_X;
+    state.portal.progress = 0.01;
+    state.portal.crossedHalfway = false;
+    state.extraGlitch = 0.25;
+    handGroup.position.z = -0.29;
+    playPortalUnfoldSound(true);
+    objectiveStrip.textContent = '异常状态：西侧镀膜窗已开孔，可进入墙后夹层';
+    triggerBroadcast('“警报！！西侧单向玻璃结构损毁——滋啦——【磁带卡死杂音：第 20 年自动扩音循环中断……】”', true, '自动盘式扩音机');
+  }
+  function renderMinimap() {
+    const ctx = minimapCtx;
+    const w = minimapCanvas.width;
+    const h = minimapCanvas.height;
+    const cx = w / 2;
+    const cy = h / 2;
+    const scale = 5.6;
+    fRect(ctx, '#060c08', 0, 0, w, h);
+    ctx.strokeStyle = 'rgba(120, 190, 140, 0.10)';
+    ctx.lineWidth = 1;
+    for (let g = 14; g < w; g += 14) {
+      ctx.beginPath();
+      ctx.moveTo(g, 0);
+      ctx.lineTo(g, h);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, g);
+      ctx.lineTo(w, g);
+      ctx.stroke();
+    }
+    const rHalfPx = ROOM_HALF * scale;
+    ctx.strokeStyle = 'rgba(140, 220, 162, 0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(cx - rHalfPx, cy - rHalfPx, rHalfPx * 2, rHalfPx * 2);
+    if (currentRoom) {
+      ctx.fillStyle = 'rgba(110, 150, 122, 0.28)';
+      currentRoom.userData.colliders.forEach((col) => {
+        const rx = cx + col.minX * scale;
+        const ry = cy + col.minZ * scale;
+        const rw = (col.maxX - col.minX) * scale;
+        const rh = (col.maxZ - col.minZ) * scale;
+        ctx.fillRect(rx, ry, rw, rh);
+      });
+    }
+    if (state.portal.active) {
+      const p = state.portal;
+      const meta = WALL_META[p.dir];
+      const wx = meta.nx * ROOM_HALF + meta.tx * p.offset;
+      const wz = meta.nz * ROOM_HALF + meta.tz * p.offset;
+      const px = cx + wx * scale;
+      const pz = cy + wz * scale;
+      ctx.strokeStyle = p.isSecretWindow ? '#ff4b75' : '#6edff6';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(px - Math.abs(meta.tx) * 5, pz - Math.abs(meta.tz) * 5);
+      ctx.lineTo(px + Math.abs(meta.tx) * 5, pz + Math.abs(meta.tz) * 5);
+      ctx.stroke();
+    }
+    let activeRedDots = 0;
+    const worldVec = new THREE.Vector3();
+    const radarSilList = currentRoom
+      ? ((!state.endingSeq.active || state.endingSeq.recordType === 'RETAINED') ? currentRoom.userData.silhouettes : [])
+      : (state.inLostVoid && lostVoidGroup ? lostVoidGroup.children : []);
+    if (radarSilList.length > 0) {
+      radarSilList.forEach((sil) => {
+        if (!sil.visible || sil.userData.vanished || sil.userData.fadeIn < 0.25) return;
+        sil.getWorldPosition(worldVec);
+        const sx = Math.max(4, Math.min(w - 4, cx + worldVec.x * scale));
+        const sy = Math.max(4, Math.min(h - 4, cy + worldVec.z * scale));
+        activeRedDots++;
+        const pulse = 0.45 + 0.4 * Math.sin(state.time * 6 + sil.userData.phase);
+        ctx.fillStyle = `rgba(255, 58, 58, ${(pulse * 0.35 * sil.userData.dissolveAlpha).toFixed(2)})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 5.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ff3b3b';
+        ctx.fillRect(Math.round(sx - 2), Math.round(sy - 2), 4, 4);
+      });
+    }
+    const ux = Math.max(5, Math.min(w - 5, cx + state.px * scale));
+    const uy = Math.max(5, Math.min(h - 5, cy + state.pz * scale));
+    const fx = -Math.sin(state.yaw);
+    const fz = -Math.cos(state.yaw);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+    ctx.beginPath();
+    ctx.moveTo(ux, uy);
+    ctx.lineTo(ux + (fx * 11 - fz * 5.5), uy + (fz * 11 + fx * 5.5));
+    ctx.lineTo(ux + (fx * 11 + fz * 5.5), uy + (fz * 11 - fx * 5.5));
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(Math.round(ux - 2), Math.round(uy - 2), 5, 5);
+    if (state.endingSeq.active && state.endingSeq.recordType !== 'RETAINED') {
+      radarPingLabel.textContent = 'ERR:--';
+      radarPingLabel.style.color = '#e84a4a';
+    } else {
+      const totalBio = 1 + activeRedDots;
+      radarPingLabel.textContent = `BIO:${String(totalBio).padStart(2, '0')}`;
+      radarPingLabel.style.color = activeRedDots > 0 ? '#ff6b6b' : 'rgba(168, 205, 180, 0.72)';
+    }
+  }
+  function getAimedInteractable() {
+    if (!currentRoom) return null;
+    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+    const hits = raycaster.intersectObjects(currentRoom.userData.interactables, false);
+    if (hits.length > 0 && hits[0].distance < 2.95) {
+      return hits[0].object;
+    }
+    return null;
+  }
+  function clearHeldKeys() {
+    Object.keys(keys).forEach((k) => { keys[k] = false; });
+  }
+  function openInspectModal(title, htmlContent, showOverridePanel, useCrtStyle, showPortShortcut) {
+    if (state.manualOpen) {
+      state.manualOpen = false;
+      manualModal.classList.remove('open');
+    }
+    clearHeldKeys();
+    state.pausedForModal = true;
+    if (document.pointerLockElement) {
+      try { document.exitPointerLock(); } catch (e) {  }
+    }
+    inspectModal.classList.toggle('crt-style', Boolean(useCrtStyle));
+    inspectTitle.textContent = title;
+    inspectBody.innerHTML = htmlContent;
+    termMaxpowerBox.classList.remove('visible');
+    termStatusHint.textContent = '';
+    if (showOverridePanel) {
+      termCodePanel.classList.add('visible');
+      btnOpenTermPort.style.display = 'none';
+    } else {
+      termCodePanel.classList.remove('visible');
+      btnOpenTermPort.style.display = showPortShortcut ? 'inline-block' : 'none';
+    }
+    inspectModal.classList.add('open');
+    playPaperRustle();
+  }
+  function closeInspectModal() {
+    inspectModal.classList.remove('open');
+    state.pausedForModal = false;
+    playUiBeep(420, 0.05);
+  }
+  function showCrypticLockerSlip() {
+    state.lockerNoteRead = true;
+    state.overrideUnlocked = true;
+    if (currentRoom && currentRoom.userData.crtScreen) {
+      currentRoom.userData.crtScreen.material.map = createTerminalScreenTexture(state.cycle, state.overrideArmed, true);
+      currentRoom.userData.crtScreen.material.needsUpdate = true;
+    }
+    const slipHtml =
+      '<div class="skew-note-wrap">' +
+      '<div class="skew-line-1">1. 标定传输净距：<span class="strike-heavy">12.32 米</span> <span class="strike-heavy">0.32 米</span> <span class="hand-edit">0. 0 0 米</span>（墙外系实心岩层，无 接 收 端）</div>' +
+      '<div class="skew-line-2">2. 切开墙面后，<span class="strike-heavy">受试人进入下一间</span> 仅新增同位折页；旧体失焦静置，满 <span class="hand-edit">柒</span> 次归入背景，免 结 薪 资。</div>' +
+      '<div class="skew-line-3">3. 西侧隔间自 <span class="strike-heavy">1998</span> <span class="hand-edit">1978 封焊</span> 起无活人，仅留 <span class="smudge-mark">盘式磁带</span> 循 环 扩 音。</div>' +
+      '<div class="skew-line-4">4. 倘尚能迈步：<span class="strike-heavy">切勿触碰工作站</span> 往西北角终端键入工号调转极性，朝西墙镀膜玻璃 <span class="strike-heavy">报修</span> <span class="hand-edit">开  孔</span></div>' +
+      '</div>';
+    openInspectModal('铁柜隔板里的涂改便签', slipHtml, false, false);
+  }
+  function handleInteract() {
+    if (!state.started || state.ended || state.endingSeq.active || state.inLostVoid || state.inBedroom || state.inTransitionMonologue) return;
+    if (state.manualOpen) {
+      toggleManualModal();
+      return;
+    }
+    if (state.pausedForModal) {
+      closeInspectModal();
+      return;
+    }
+    const obj = getAimedInteractable();
+    if (!obj) return;
+    const kind = obj.userData.interactType;
+    state.logsRead++;
+    if (kind === 'calibrator') {
+      state.calibratedThisCycle = true;
+      if (obj.userData.btnMat) {
+        obj.userData.btnMat.color.setHex(0x2b6340);
+      }
+      playUiBeep(860, 0.10);
+      const cfg = CYCLE_CONFIG[Math.min(state.cycle, CYCLE_CONFIG.length - 1)];
+      objectiveStrip.textContent = `校准已登记 → 请在【${WALL_META[cfg.reqWall].label}】展开传送门`;
+      triggerBroadcast(`“心率采样通过。请按流程在【${WALL_META[cfg.reqWall].label}】展开墙面传送门。”`, false);
+      return;
+    }
+    if (kind === 'lockerDoor') {
+      const lg = obj.userData.lockerRef;
+      if (!lg.userData.unlocked) {
+        lg.userData.rattleTimer = 0.35;
+        playLockerSound(false);
+        openInspectModal(
+          '4091 号员工铁柜（已上锁）',
+          `黄铜挂锁把柜门扣得很死，百叶透气孔后面黑沉沉的。\n柜脚下整整齐齐摆着 ${Math.min(4, 1 + Math.floor(state.cycle / 2))} 双同尺码的旧劳保鞋。`,
+          false,
+          false
+        );
+      } else if (!lg.userData.isOpen) {
+        lg.userData.isOpen = true;
+        lg.userData.targetAngle = -1.92;
+        playLockerSound(true);
+      } else {
+        showCrypticLockerSlip();
+      }
+      return;
+    }
+    if (kind === 'lockerNote') {
+      showCrypticLockerSlip();
+      return;
+    }
+    if (kind === 'terminal') {
+      const c = state.cycle;
+      const autoShowPanel = (state.lockerNoteRead || c >= 4) && !state.overrideArmed;
+      const allowPortBtn = !autoShowPanel && !state.overrideArmed;
+      const logs = [
+        `[B-09 终端日志 #00]\n值班记录：受试专员 #E-4092 入舱登记完毕。\n舱门状态：外部机械闭锁。\n备注：随身《员工守则》已配发，请受试员按 [Tab] 配合广播查阅。`,
+        `[B-09 遥测日志 #01]\n激光测距：北墙展开裂隙期间，建筑外轮廓未发生位移。\n异常项：桌面水杯坐标由 (+0.48) 偏移至 (-0.54)，液体余温 58°C。`,
+        `[后勤工单存档 #391]\n清洁班组反馈：B-09 室每次试验结束后，内墙净距均缩窄约 2 毫米；4091 号铁柜下方清理出多双同尺码旧工装鞋，暂未查明来源。`,
+        `[设备自检记录]\n生物电雷达校准：传感器无硬件故障。\n备注：除受试员本人外，室内检出迟滞约 1.2 秒的同频回波。`,
+        `[维护端口状态]\n底层极性校准槽处于待机状态（默认预填当前受试员工号）。`
+      ];
+      const text = logs[Math.min(c, logs.length - 1)].replace(/\n/g, '<br />');
+      openInspectModal('B-09 显像管工作站', text, autoShowPanel, true, allowPortBtn);
+      return;
+    }
+    if (kind === 'poster') {
+      state.posterPeeled = true;
+      if (obj.userData.meshRef) {
+        obj.userData.meshRef.material.map = createPosterTexture(true);
+        obj.userData.meshRef.material.needsUpdate = true;
+      }
+      openInspectModal(
+        '卷边的企业宣传画背面',
+        '<div style="padding:8px 4px;">' +
+        '<div style="transform:rotate(-2.4deg);letter-spacing:4px;color:#4a3f35;margin-bottom:12px;">正 正  正   正  正 …… <strong style="display:inline-block;transform:rotate(-7deg);margin-left:6px;color:#6e1d1d;">4 0 9 1</strong></div>' +
+        '<div style="transform:rotate(-6.2deg) translateX(10px);font-size:14px;color:#2b221e;letter-spacing:5px;word-spacing:10px;margin-top:14px;">' +
+        '第 四 轮 <span style="display:inline-block;transform:rotate(4deg) translateY(3px);margin:0 8px;">锁 松 了</span> 去 拉 <span style="display:inline-block;transform:rotate(-9deg) translateY(-2px);color:#661a1a;">西 南 角 铁 柜</span>' +
+        '</div></div>',
+        false,
+        false
+      );
+      return;
+    }
+    if (kind === 'window') {
+      const msg = state.cycle <= 1
+        ? '隔着半透光的深色镀膜玻璃往里看，里面是一间逼仄昏暗的控制隔间：调音台和旧显示器积满灰尘，空转椅歪在一旁，只有角落一盏红色录像灯在暗处一明一灭。'
+        : '透过深色玻璃能隐约看见荒废调音台的轮廓与闪烁的红灯，玻璃内侧似乎留着半枚模糊的潮湿指印。';
+      openInspectModal('西侧单向观察窗', msg, false, false);
+      return;
+    }
+    if (kind === 'door') {
+      openInspectModal(
+        'B-09 气密防爆门',
+        '门框指示灯长亮红灯，锁舌从外部扣死。贴近钢板倾听，门外听不见任何走廊通风声。',
+        false,
+        false
+      );
+      return;
+    }
+    if (kind === 'taperack') {
+      openInspectModal(
+        '自动盘式扩音机柜',
+        '磁带转轮正一格格自动步进，标签手写着：《B-09 标准引导母带 · 循环》。音频线沿着墙角直接通往北墙高处的高音喇叭。',
+        false,
+        false
+      );
+      return;
+    }
+    if (kind === 'pylonBackNote') {
+      const crookedNote =
+        '<div style="padding:18px 10px 14px 12px;font-family:\"KaiTi\",\"STKaiti\",serif;color:#24211c;">' +
+        '<span class="scattered-char" style="font-size:17px;transform:rotate(-8deg) translateY(2px);margin-right:6px;">视</span>' +
+        '<span class="scattered-char" style="font-size:15px;transform:rotate(-4deg) translateY(-2px);margin-right:11px;">觉</span>' +
+        '<span class="scattered-char" style="font-size:18px;transform:rotate(-11deg) translateY(3px);margin-right:4px;">噪</span>' +
+        '<span class="scattered-char" style="font-size:16px;transform:rotate(-5deg) translateY(-1px);margin-right:14px;">点</span>' +
+        '<span class="scattered-char" style="font-size:14px;transform:rotate(-9deg) translateY(5px);margin-right:16px;">……</span>' +
+        '<span class="scattered-char" style="font-size:16px;transform:rotate(-12deg) translateY(-3px);margin-right:8px;">怎</span>' +
+        '<span class="scattered-char" style="font-size:15px;transform:rotate(-6deg) translateY(2px);margin-right:13px;">么</span>' +
+        '<span class="scattered-char" style="font-size:17px;transform:rotate(-9deg) translateY(-4px);margin-right:5px;">可</span>' +
+        '<span class="scattered-char" style="font-size:16px;transform:rotate(-3deg) translateY(1px);margin-right:15px;">能</span>' +
+        '<span class="scattered-char" style="font-size:19px;transform:rotate(-14deg) translateY(4px);margin-right:9px;color:#5e1919;">移</span>' +
+        '<span class="scattered-char" style="font-size:18px;transform:rotate(-7deg) translateY(8px);color:#5e1919;">动</span>' +
+        '</div>';
+      openInspectModal('背面粘着的碎纸条', crookedNote, false, false);
+      return;
+    }
+    if (kind === 'clock') {
+      openInspectModal(
+        '石英挂钟',
+        state.cycle === 0
+          ? '表盘指针停在凌晨两点十四分附近，秒针发出轻微的咔哒声。'
+          : '秒针在原地反复抽动，始终没有跨过两点十四分。',
+        false,
+        false
+      );
+    }
+  }
+  function updateSegmentBar(c) {
+    const segs = hudSegBar.querySelectorAll('i');
+    segs.forEach((el, idx) => {
+      el.className = '';
+      if (idx < c) {
+        el.classList.add(c >= 5 ? 'warn' : 'on');
+      }
+    });
+  }
+  function enterCycle(newCycle) {
+    state.cycle = newCycle;
+    state.calibratedThisCycle = false;
+    if (newCycle >= 8) {
+      beginEndingSequence('RETAINED');
+      return;
+    }
+    const cfg = CYCLE_CONFIG[Math.min(newCycle, CYCLE_CONFIG.length - 1)];
+    hudCycle.textContent = `0${newCycle}/07`;
+    const corruptPct = Math.min(96, Math.round((newCycle / 7) * 88));
+    hudCorrupt.textContent = `${corruptPct}%`;
+    updateSegmentBar(newCycle);
+    if (cfg.spawnRoomShadows > 0 || cfg.spawnWindowShadow) {
+      state.pendingSpawn.active = true;
+      state.pendingSpawn.timer = 1.2;
+      state.pendingSpawn.roomCount = cfg.spawnRoomShadows;
+      state.pendingSpawn.windowShadow = Boolean(cfg.spawnWindowShadow);
+    } else {
+      state.pendingSpawn.active = false;
+    }
+    if (cfg.suggestManualTab !== null && cfg.suggestManualTab !== undefined) {
+      state.activeManualTab = cfg.suggestManualTab;
+      btnBriefingHelp.classList.add('notify');
+    }
+    if (newCycle === 3) {
+      stopLight8BitBGM(true);
+    }
+    if (newCycle === 4) {
+      setTimeout(() => {
+        playLatchPopClatter();
+        if (currentRoom && currentRoom.userData.lockerGroup) {
+          const lud = currentRoom.userData.lockerGroup.userData;
+          lud.curAngle = -0.52;
+          lud.targetAngle = -0.24;
+          lud.rattleTimer = 0.45;
+        }
+      }, 950);
+    }
+    if (state.overrideArmed) {
+      objectiveStrip.textContent = '警告：裂隙发生器极性已变更';
+    } else {
+      objectiveStrip.textContent = cfg.objective;
+    }
+    triggerBroadcast(cfg.broadcast, Boolean(cfg.hijacked));
+  }
+  function beginEndingSequence(recordType) {
+    if (state.endingSeq.active || state.ended) return;
+    stopLight8BitBGM(false);
+    state.endingSeq.active = true;
+    state.endingSeq.recordType = recordType;
+    state.endingSeq.elapsed = 0;
+    state.endingSeq.duration = recordType === 'RETAINED' ? 4.5 : 2.65;
+    state.endingSeq.nextCrowdSpawn = 0.05;
+    state.endingSeq.spawnedCrowd = 0;
+    if (subTimerId) clearInterval(subTimerId);
+    subtitleBar.classList.remove('active');
+    aimPromptEl.classList.remove('visible');
+    playEndingRumble();
+  }
+  function showArchivedDossier(recordType) {
+    state.ended = true;
+    state.endingSeq.active = false;
+    if (document.pointerLockElement) {
+      try { document.exitPointerLock(); } catch (e) {  }
+    }
+  const renderArchive = (rows) => `<table class="archive-table">${rows.map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('')}</table>`;
+  const DOSSIER_MAP = {
+    LOST: ['状态：不明', 'rgba(72, 72, 72, 0.88)', 'rgba(55, 55, 55, 0.90)', '异常卷宗：VOID-B09-4092', '《受试员工封存档案 · 工号 E-4092》', [
+      ['员工工号', 'E-4092'], ['入舱时间', '1998 年 11 月 24 日 02:14:09'], ['当前状态', '<strong>不明</strong>'],
+      ['异常脱轨记录', '测试期间累计逾四轮未按广播指定方位开启墙面传送门，受试员遥测坐标坠入未定义盲区。'],
+      ['合同免责结论', '<strong>员工因未按照规定操作仪器导致的后果不在公司合同保障内</strong>']
+    ]],
+    TRUE_ESCAPE: ['试验结案？', 'rgba(140, 35, 35, 0.82)', 'rgba(140, 35, 35, 0.86)', '卷宗编号：HR-98-3062-X', '《受试员工封存档案 · 工号 E-4092》', [
+      ['员工工号', 'E-4092'], ['授权覆盖码', '3062（最大功率输出已触发）'],
+      ['离舱监测记录', 'B-09 南侧防爆门检出高能白光溢散；次日 08:30 于受试员登记住所卧室内检出同源吸光回波。'],
+      ['归档评定结论', '<strong style="font-size:15px;color:#6e1b1b;">成功完成产品试验？</strong>']
+    ]],
+    RETAINED: ['归档留舱', 'rgba(150, 28, 28, 0.82)', 'rgba(150, 28, 28, 0.85)', '卷宗编号：HR-98-4092-R', '《受试员工封存档案 · 工号 E-4092》', [
+      ['员工工号', 'E-4092（夜间测试部 · 临时编外）'], ['入舱时间', '1998 年 11 月 24 日 02:14:09'],
+      ['出舱打卡记录', '无记录（B-09 气密防爆门开启次数：0）'], ['穿墙折叠完成度', '07 / 07 轮（全部按广播指令执行完毕）'],
+      ['现存物理位置', 'B-09 试验室后方阴影静置位（与 #E-0001 至 #E-4091 并列归档）'],
+      ['配发物资清点', '裂隙展开器 1 台（已回收并移交下一顺位受试员 #E-4093）；劳保鞋 1 双（留置 4091 号柜底）'],
+      ['定期巡检附注', '该档案对象目前站立姿态稳定，伴随正常局部吸光现象；经下一班次受试员近距接触或目视后可正常隐没。准予长期封存。']
+    ]],
+    ESCAPED: ['异常注销', 'rgba(30, 59, 110, 0.82)', 'rgba(30, 59, 110, 0.85)', '事故卷宗：INC-B09-W04', '《受试员工封存档案 · 工号 E-4092（损毁件）》', [
+      ['员工工号', 'E-4092（权限已冻结 · 绩效清零）'], ['入舱时间', '1998 年 11 月 24 日 02:14:09'],
+      ['离舱状态', '非正常脱出（西侧 W-04 单向镀膜观察窗遭逆相束开孔）'],
+      ['现场勘验摘要', '西侧隔间系封闭狭长夹层，无值班人员；内有断带停转的 1978 型自动扩音机 1 台，受潮录像母带 4,091 盘。'],
+      ['下落核查', '夹层尽头旧检修井盖呈推开状态，现场仅遗留《员工守则》1 册及涂改便签 1 张，室内未检出对应残影红点。'],
+      ['归档处置决议', '定性为违规损毁公司测试器材，本卷宗永久封存备查。']
+    ]]
+  };
+  const [stampTxt, bCol, cCol, badgeTxt, titleTxt, rows] = DOSSIER_MAP[recordType] || DOSSIER_MAP.ESCAPED;
+  endSealStamp.textContent = stampTxt; endSealStamp.style.borderColor = bCol; endSealStamp.style.color = cCol;
+  endBadgeRight.textContent = badgeTxt; endTitle.textContent = titleTxt; endDesc.innerHTML = renderArchive(rows);
+    endStats.textContent = `归档穿墙计数：${state.portalCrossings}  |  消散残像记录：${state.vanishedCount}  |  设施检视：${state.logsRead}`;
+    endingScreen.style.display = 'flex';
+    requestAnimationFrame(() => {
+      endingScreen.classList.add('visible');
+    });
+    playPaperRustle();
+  }
+  function canStandAt(nx, nz) {
+    if (state.inLostVoid) {
+      return Math.hypot(nx, nz) < 8.5;
+    }
+    if (state.inBedroom && bedroomGroup) {
+      if (Math.abs(nx) > 3.02 || Math.abs(nz) > 3.02) return false;
+      for (const c of bedroomGroup.userData.colliders) {
+        if (nx > c.minX - 0.25 && nx < c.maxX + 0.25 && nz > c.minZ - 0.25 && nz < c.maxZ + 0.25) {
+          return false;
+        }
+      }
+      return true;
+    }
+    const margin = 0.44;
+    const p = state.portal;
+    if (p.active && p.isPureWhiteExit) {
+      const meta = WALL_META.S;
+      const planeDist = (nx * meta.nx + nz * meta.nz) - ROOM_HALF;
+      const tangentPos = nx * meta.tx + nz * meta.tz;
+      if (Math.abs(tangentPos - p.offset) < 0.62 && planeDist > -0.6 && planeDist < 0.85) {
+        return true;
+      }
+    }
+    if (p.active && p.progress > 0.70) {
+      const meta = WALL_META[p.dir];
+      const planeDist = (nx * meta.nx + nz * meta.nz) - ROOM_HALF;
+      const tangentPos = nx * meta.tx + nz * meta.tz;
+      const inApertureWidth = Math.abs(tangentPos - p.offset) < (PORTAL_W * 0.5 - 0.30);
+      if (planeDist > -margin - 0.05 && planeDist < WALL_THICK + margin + 0.05) {
+        return inApertureWidth;
+      }
+      if (p.isSecretWindow && planeDist >= WALL_THICK) {
+        return planeDist < WALL_THICK + 3.4 && Math.abs(tangentPos - p.offset) < 1.25;
+      }
+      if (!p.isSecretWindow && nextRoom && planeDist >= WALL_THICK) {
+        const lx = nx - nextRoom.position.x;
+        const lz = nz - nextRoom.position.z;
+        if (Math.abs(lx) > ROOM_HALF - margin || Math.abs(lz) > ROOM_HALF - margin) {
+          if (!(planeDist < WALL_THICK + margin + 0.22 && inApertureWidth)) {
+            return false;
+          }
+        }
+        for (const c of nextRoom.userData.colliders) {
+          if (lx > c.minX - 0.30 && lx < c.maxX + 0.30 && lz > c.minZ - 0.30 && lz < c.maxZ + 0.30) {
+            return false;
+          }
+        }
+        return true;
+      }
+    }
+    if (Math.abs(nx) > ROOM_HALF - margin || Math.abs(nz) > ROOM_HALF - margin) {
+      return false;
+    }
+    if (currentRoom) {
+      for (const c of currentRoom.userData.colliders) {
+        if (nx > c.minX - 0.30 && nx < c.maxX + 0.30 && nz > c.minZ - 0.30 && nz < c.maxZ + 0.30) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+  function updatePortalAndTraversal(dt) {
+    const p = state.portal;
+    if (!p.active || !currentRoom) return;
+    p.progress = Math.min(1.0, p.progress + dt * 1.65);
+    const wallGroup = currentRoom.userData.walls[p.dir];
+    if (wallGroup && wallGroup.userData.portalAnim) {
+      const anim = wallGroup.userData.portalAnim;
+      const ease = 1 - Math.pow(1 - p.progress, 3);
+      const halfW = anim.spanW / 2;
+      anim.shutterL.scale.x = Math.max(0.001, 1 - ease);
+      anim.shutterL.position.x = -halfW * 0.5 - (halfW * 0.5) * ease;
+      anim.shutterR.scale.x = Math.max(0.001, 1 - ease);
+      anim.shutterR.position.x = halfW * 0.5 + (halfW * 0.5) * ease;
+      anim.ringGroup.scale.x = 0.02 + 0.98 * ease;
+      anim.centerSeam.visible = p.progress < 0.42;
+      anim.veilMat.uniforms.uTime.value = state.time;
+    }
+    const meta = WALL_META[p.dir];
+    const planeDist = (state.px * meta.nx + state.pz * meta.nz) - ROOM_HALF;
+    if (p.dir === 'E' && nextRoom && nextRoom.userData.walls.W && nextRoom.userData.walls.W.userData.boothGroup) {
+      nextRoom.userData.walls.W.userData.boothGroup.visible = (planeDist > WALL_THICK * 0.5);
+    }
+    if (p.dir === 'W' && currentRoom && currentRoom.userData.walls.W && currentRoom.userData.walls.W.userData.boothGroup) {
+      currentRoom.userData.walls.W.userData.boothGroup.visible = (planeDist < WALL_THICK * 0.5);
+    }
+    if (p.isPureWhiteExit && planeDist > -0.08) {
+      startTrueEscapeTransition();
+      return;
+    }
+    if (!p.crossedHalfway && planeDist > WALL_THICK * 0.5) {
+      p.crossedHalfway = true;
+      state.portalCrossings++;
+      postUniforms.uPulseFlash.value = 0.40;
+      state.extraGlitch = Math.max(state.extraGlitch, 0.14);
+      playPortalCrossSound();
+    }
+    if (p.crossedHalfway && planeDist < 0) {
+      p.crossedHalfway = false;
+    }
+    if (p.isSecretWindow && planeDist > WALL_THICK + 1.15) {
+      beginEndingSequence('ESCAPED');
+      return;
+    }
+    if (!p.isSecretWindow && nextRoom && planeDist > WALL_THICK + 1.38) {
+      const prevReqWall = CYCLE_CONFIG[Math.min(state.cycle, CYCLE_CONFIG.length - 1)].reqWall;
+      if (p.dir !== prevReqWall) {
+        state.wrongWallCount++;
+      }
+      if (state.wrongWallCount > 4) {
+        enterLostVoid();
+        return;
+      }
+      playWallSealSound();
+      state.px -= nextRoom.position.x;
+      state.pz -= nextRoom.position.z;
+      worldScene.remove(currentRoom);
+      currentRoom = nextRoom;
+      currentRoom.position.set(0, 0, 0);
+      if (currentRoom.userData.walls.W && currentRoom.userData.walls.W.userData.boothGroup) {
+        currentRoom.userData.walls.W.userData.boothGroup.visible = true;
+      }
+      nextRoom = null;
+      replaceRoomWall(currentRoom, meta.opp, null);
+      p.active = false;
+                p.progress = 0;
+      enterCycle(currentRoom.userData.cycleIdx);
+    }
+  }
+  function relocateSilhouetteBehindPlayer(sil, camForward) {
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const cand = SHADOW_SPOTS[Math.floor(Math.random() * SHADOW_SPOTS.length)];
+      const dx = cand.x - state.px;
+      const dz = cand.z - state.pz;
+      const dist = Math.hypot(dx, dz);
+      if (dist < 3.8) continue;
+      const dirToCand = new THREE.Vector3(dx / dist, 0, dz / dist);
+      if (camForward.dot(dirToCand) < -0.22) {
+        sil.position.set(cand.x, 0, cand.z);
+        return;
+      }
+    }
+  }
+  function updateLockerAndBoothAnimations(dt) {
+    if (!currentRoom) return;
+    const lg = currentRoom.userData.lockerGroup;
+    if (lg) {
+      const ud = lg.userData;
+      ud.curAngle += (ud.targetAngle - ud.curAngle) * Math.min(1, dt * 7.5);
+      let rattleOffset = 0;
+      if (ud.rattleTimer > 0) {
+        ud.rattleTimer = Math.max(0, ud.rattleTimer - dt);
+        rattleOffset = Math.sin(ud.rattleTimer * 55) * 0.035;
+      }
+      ud.doorPivot.rotation.y = ud.curAngle + rattleOffset;
+    }
+    const wWall = currentRoom.userData.walls.W;
+    if (wWall && wWall.userData.boothRec) {
+      const on = (Math.floor(state.time * 1.6) % 2) === 0;
+      wWall.userData.boothRec.recLedMat.color.setHex(on ? 0xff3232 : 0x3b0c0c);
+      wWall.userData.boothRec.boothDimLight.intensity = on ? 0.50 : 0.16;
+    }
+  }
+  function updateSilhouettesAndHorror(dt) {
+    if (!currentRoom) return;
+    if (state.pendingSpawn.active) {
+      state.pendingSpawn.timer -= dt;
+      if (state.pendingSpawn.timer <= 0) {
+        state.pendingSpawn.active = false;
+        spawnRearSilhouettesNow();
+      }
+    }
+    const cfg = CYCLE_CONFIG[Math.min(state.cycle, CYCLE_CONFIG.length - 1)];
+    state.curDesat += (cfg.desat - state.curDesat) * Math.min(1, dt * 1.5);
+    state.curDistort += (cfg.distort - state.curDistort) * Math.min(1, dt * 1.6);
+    state.curNoise += (cfg.noise - state.curNoise) * Math.min(1, dt * 1.6);
+    state.curLight += (cfg.lightLevel - state.curLight) * Math.min(1, dt * 1.5);
+    state.extraGlitch = Math.max(0, state.extraGlitch - dt * 1.2);
+    postUniforms.uPulseFlash.value = Math.max(0, postUniforms.uPulseFlash.value - dt * 2.5);
+    worldScene.fog.density += (cfg.fogDensity - worldScene.fog.density) * Math.min(1, dt * 1.5);
+    currentRoom.userData.reels.forEach((r) => {
+      r.rotation.x += dt * 1.8;
+    });
+    const nWall = currentRoom.userData.walls.N;
+    if (nWall && nWall.userData.paHorn && subtitleBar.classList.contains('active')) {
+      const s = 1 + Math.sin(state.time * 40) * 0.04;
+      nWall.userData.paHorn.scale.set(s, s, s);
+    }
+    let minSilDist = 99;
+    const camForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const camForwardFlat = new THREE.Vector3(camForward.x, 0, camForward.z).normalize();
+    const worldPos = new THREE.Vector3();
+    currentRoom.userData.silhouettes.forEach((sil) => {
+      if (!sil.visible || sil.userData.vanished) return;
+      sil.getWorldPosition(worldPos);
+      worldPos.y += 1.2;
+      const dist = Math.hypot(worldPos.x - state.px, worldPos.z - state.pz);
+      if (dist < minSilDist) minSilDist = dist;
+      const proxFactor = Math.pow(Math.max(0, (6.4 - dist) / 4.2), 2.1) * 4.2;
+      if (sil.userData.dissolving) {
+        const dissolveSpeed = 3.8 + proxFactor * 1.8;
+        sil.userData.dissolveAlpha -= dt * dissolveSpeed;
+        const a = Math.max(0, sil.userData.dissolveAlpha);
+        sil.userData.sinkWallMat.opacity = a * 0.92;
+        sil.userData.sinkFloorMat.opacity = a * 0.88;
+        sil.userData.layers.forEach((layer, idx) => {
+          layer.position.x = (idx - 1) * 0.06 + (Math.random() - 0.5) * 0.15;
+          layer.material.opacity = a * (idx === 0 ? 0.82 : 0.40);
+        });
+        if (sil.userData.dissolveAlpha <= 0.02) {
+          sil.visible = false;
+          sil.userData.vanished = true;
+          state.vanishedCount++;
+        }
+        return;
+      }
+      sil.userData.fadeIn = Math.min(1.0, sil.userData.fadeIn + dt * 1.6);
+      const fi = sil.userData.fadeIn;
+      sil.userData.sinkWallMat.opacity = fi * 0.95;
+      sil.userData.sinkFloorMat.opacity = fi * 0.90;
+      sil.userData.layers.forEach((layer, idx) => {
+        const shiver = sil.userData.stareAccum > 0.25 ? 0.065 : 0.024;
+        layer.position.x = (idx - 1) * 0.04 + (Math.random() - 0.5) * shiver;
+        layer.rotation.z = Math.sin(state.time * 2.1 + sil.userData.phase + idx) * 0.03;
+        layer.material.opacity = fi * (idx === 0 ? 0.82 : 0.40);
+      });
+      const toSil = worldPos.clone().sub(camera.position).normalize();
+      const dot = camForward.dot(toSil);
+      const yawToPlayer = Math.atan2(state.px - worldPos.x, state.pz - worldPos.z);
+      if (sil.userData.type === 'room') {
+        sil.rotation.y = yawToPlayer;
+        if (dot < -0.05 && state.time > sil.userData.nextRelocateAt) {
+          sil.userData.nextRelocateAt = state.time + 6.5 + Math.random() * 6.0;
+          relocateSilhouetteBehindPlayer(sil, camForwardFlat);
+        }
+      } else {
+        sil.rotation.y = Math.PI / 2;
+      }
+      let dissipateRate = 0;
+      if (dot > 0.84 && dist < 12.5) {
+        dissipateRate = 1.45 + proxFactor;
+      } else if (dot > 0.52 && dist < 5.2) {
+        dissipateRate = proxFactor * 0.85;
+      } else if (dist < 2.8) {
+        dissipateRate = 2.4 + proxFactor;
+      }
+      if (dissipateRate > 0) {
+        sil.userData.stareAccum += dt * dissipateRate;
+        state.extraGlitch = Math.max(state.extraGlitch, Math.min(0.18, sil.userData.stareAccum * 0.09));
+        if (sil.userData.stareAccum >= 1.0) {
+          sil.userData.dissolving = true;
+          state.extraGlitch = 0.20;
+          playDissipateWhisper();
+          if (state.time - state.lastGazeBroadcastAt > 8.5 && !subtitleBar.classList.contains('hijacked')) {
+            state.lastGazeBroadcastAt = state.time;
+            const line = GAZE_DISISSIPATE_LINES[state.vanishedCount % GAZE_DISISSIPATE_LINES.length];
+            triggerBroadcast(line, false);
+          }
+        }
+      } else {
+        sil.userData.stareAccum = Math.max(0, sil.userData.stareAccum - dt * 0.45);
+      }
+    });
+    const absorbFactor = minSilDist < 6.0 ? Math.max(0.58, minSilDist / 6.0) : 1.0;
+    const dip = (state.cycle >= 3 && Math.sin(state.time * 23.0) * Math.sin(state.time * 59.0) > 0.86) ? 0.55 : 1.0;
+    currentRoom.userData.mainPoint.intensity = (0.42 + 0.65 * state.curLight) * absorbFactor * dip;
+    currentRoom.userData.ambient.intensity = (0.48 + 0.42 * state.curLight) * (0.82 + 0.18 * absorbFactor);
+    if (state.flashlightOn) {
+      flashLight.intensity = 2.45 * (0.72 + 0.28 * absorbFactor);
+    }
+    const emfLevel = minSilDist < 3.8 ? 3 : (minSilDist < 7.2 ? 2 : 1);
+    emfLedMats[0].color.setHex(0x39b858);
+    emfLedMats[1].color.setHex(emfLevel >= 2 ? 0xebb45e : 0x332d14);
+    emfLedMats[2].color.setHex(emfLevel >= 3 ? 0xe84a4a : 0x361414);
+    hudEmf.textContent = emfLevel === 3 ? '近距回波' : (emfLevel === 2 ? '轻微扰动' : '平稳');
+    hudEmf.style.color = emfLevel === 3 ? '#e84a4a' : (emfLevel === 2 ? '#ebb45e' : '#8ce6a2');
+    if (audio.ready && !state.muted) {
+      const targetStatic = 0.003 + state.curNoise * 0.03 + state.extraGlitch * 0.08 + (emfLevel === 3 ? 0.018 : 0);
+      audio.staticGain.gain.value = Math.min(0.14, targetStatic);
+      audio.humOsc1.frequency.value = Math.max(44, 60 - state.cycle * 2.0);
+    }
+    postUniforms.uTime.value = state.time;
+    postUniforms.uDesat.value = Math.min(0.82, state.curDesat);
+    postUniforms.uDistort.value = Math.min(0.38, state.curDistort + state.extraGlitch * 0.4);
+    postUniforms.uNoise.value = Math.min(0.26, state.curNoise + state.extraGlitch * 0.25);
+  }
+  function updateReticleState() {
+    if (!currentRoom || state.pausedForModal || state.ended || state.endingSeq.active) {
+      aimPromptEl.classList.remove('visible');
+      return;
+    }
+    const interactObj = getAimedInteractable();
+    if (interactObj) {
+      const kind = interactObj.userData.interactType;
+      let label = '[E]';
+      if (kind === 'terminal') label = '[E] 终端';
+      else if (kind === 'calibrator') label = '[E] 校准打卡';
+      else if (kind === 'poster') label = '[E] 宣传画';
+      else if (kind === 'window') label = state.overrideArmed ? '[F / 左键] 开孔' : '[E] 观察窗';
+      else if (kind === 'door') label = state.maxPowerArmed ? '[F / 左键] 最大功率发射' : '[E] 防爆门';
+      else if (kind === 'lockerDoor') {
+        const lg = interactObj.userData.lockerRef;
+        label = !lg.userData.unlocked ? '[E] 铁柜' : (!lg.userData.isOpen ? '[E] 拉开柜门' : '[E] 查看便签');
+      } else if (kind === 'lockerNote') label = '[E] 涂改便签';
+      else if (kind === 'taperack') label = '[E] 磁带机';
+      else if (kind === 'pylonBackNote') label = '[E] 背面纸条';
+      else if (kind === 'clock') label = '[E] 挂钟';
+      aimPromptEl.textContent = label;
+      aimPromptEl.classList.add('visible');
+      reticleEl.className = ((state.overrideArmed && kind === 'window') || (state.maxPowerArmed && kind === 'door')) ? 'override-ready' : '';
+      return;
+    }
+    aimPromptEl.classList.remove('visible');
+    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+    const hits = raycaster.intersectObjects(currentRoom.children, true);
+    const wallHit = hits.find((h) => h.object.userData && h.object.userData.wallDir && h.distance < 13.0);
+    if (wallHit) {
+      reticleEl.className = (state.overrideArmed && wallHit.object.userData.wallDir === 'W')
+        ? 'override-ready'
+        : 'portal-ready';
+    } else {
+      reticleEl.className = '';
+    }
+  }
+  function stepPlayerWalk(dt, baseSpeed, turnSpeed, allowMove, withStepSound) {
+    if (keys['KeyQ'] || keys['ArrowLeft']) state.yaw += turnSpeed * dt;
+    if (keys['KeyR'] || keys['ArrowRight']) state.yaw -= turnSpeed * dt;
+    let moveF = 0, moveS = 0;
+    if (keys['KeyW'] || keys['ArrowUp'] || touchMove.up) moveF += 1;
+    if (keys['KeyS'] || keys['ArrowDown'] || touchMove.down) moveF -= 1;
+    if (keys['KeyA'] || touchMove.left) moveS -= 1;
+    if (keys['KeyD'] || touchMove.right) moveS += 1;
+    const mag = Math.hypot(moveF, moveS);
+    if (mag > 0.01 && allowMove) {
+      const sinY = Math.sin(state.yaw), cosY = Math.cos(state.yaw);
+      const vx = (-sinY * (moveF / mag) + cosY * (moveS / mag)) * baseSpeed * dt;
+      const vz = (-cosY * (moveF / mag) - sinY * (moveS / mag)) * baseSpeed * dt;
+      if (canStandAt(state.px + vx, state.pz)) state.px += vx;
+      if (canStandAt(state.px, state.pz + vz)) state.pz += vz;
+      if (withStepSound) {
+  state.stepAccumulator += dt * baseSpeed * 1.85;
+  if (state.stepAccumulator >= Math.PI) { state.stepAccumulator -= Math.PI; playFootstep(); }
+      }
+    }
+    return mag;
+  }
+  let lastFrameTime = performance.now();
+  function animate(now) {
+    requestAnimationFrame(animate);
+    const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+    lastFrameTime = now;
+    if (state.endingSeq.active) {
+      state.time += dt;
+      state.endingSeq.elapsed += dt;
+      const p = Math.min(1.0, state.endingSeq.elapsed / state.endingSeq.duration);
+      if (state.endingSeq.recordType === 'RETAINED' && currentRoom) {
+        const slowTurn = 1.15 * (1 - p * 0.65);
+        if (keys['KeyQ'] || keys['ArrowLeft']) state.yaw += slowTurn * dt;
+        if (keys['KeyR'] || keys['ArrowRight']) state.yaw -= slowTurn * dt;
+        while (state.endingSeq.elapsed >= state.endingSeq.nextCrowdSpawn && state.endingSeq.spawnedCrowd < 52) {
+          state.endingSeq.nextCrowdSpawn += 0.016;
+          const idx = state.endingSeq.spawnedCrowd++;
+          const ringRadius = 1.18 + ((idx * 7) % 19) * 0.21;
+          const angle = state.yaw + Math.PI + idx * 2.39996;
+          const sx = Math.max(-5.35, Math.min(5.35, state.px + Math.sin(angle) * ringRadius));
+          const sz = Math.max(-5.35, Math.min(5.35, state.pz + Math.cos(angle) * ringRadius));
+          const sil = createBlurredSilhouette({
+            x: sx,
+            z: sz,
+            rotY: Math.atan2(state.px - sx, state.pz - sz),
+            type: 'crowd',
+            scale: 0.98 + (idx % 4) * 0.035
+          });
+          currentRoom.add(sil);
+          currentRoom.userData.silhouettes.push(sil);
+          if (idx === 1 || idx === 14 || idx === 32) playDissipateWhisper();
+        }
+        currentRoom.userData.silhouettes.forEach((sil) => {
+          sil.visible = true;
+          sil.userData.vanished = false;
+          sil.userData.dissolving = false;
+          sil.userData.fadeIn = Math.min(1.0, sil.userData.fadeIn + dt * 5.8);
+          const fi = sil.userData.fadeIn;
+          sil.userData.sinkWallMat.opacity = fi * 0.95;
+          sil.userData.sinkFloorMat.opacity = fi * 0.92;
+          sil.rotation.y = Math.atan2(state.px - sil.position.x, state.pz - sil.position.z);
+          sil.userData.layers.forEach((layer, lIdx) => {
+            layer.position.x = (lIdx - 1) * 0.04 + (Math.random() - 0.5) * 0.045;
+            layer.rotation.z = Math.sin(state.time * 2.4 + sil.userData.phase + lIdx) * 0.035;
+            layer.material.opacity = fi * (lIdx === 0 ? 0.88 : 0.46);
+          });
+        });
+        const crowdDim = Math.max(0.12, 1.0 - p * 0.88);
+        currentRoom.userData.mainPoint.intensity = currentRoom.userData.baseMainPoint * crowdDim;
+        currentRoom.userData.ambient.intensity = currentRoom.userData.baseAmbient * crowdDim;
+        const tremor = (0.008 + p * 0.028);
+        const tYaw = Math.sin(state.time * 34) * tremor;
+        const tPitch = Math.cos(state.time * 41) * tremor - Math.max(0, p - 0.45) * 0.18;
+        camera.position.set(state.px, state.py - Math.max(0, p - 0.35) * 0.18, state.pz);
+        camera.rotation.set(state.pitch + tPitch, state.yaw + tYaw, Math.sin(state.time * 23) * tremor * 0.6);
+        const fadeBlack = Math.max(0, Math.min(1.0, (p - 0.42) / 0.52));
+        postUniforms.uTime.value = state.time;
+        postUniforms.uDistort.value = 0.22 + p * 0.18;
+        postUniforms.uNoise.value = 0.15 + p * 0.12;
+        postUniforms.uBlackout.value = fadeBlack;
+        blackoutCurtain.style.opacity = Math.max(0, (p - 0.54) / 0.42).toFixed(3);
+      } else {
+        const shakeEnv = Math.sin(Math.min(1, p * 1.25) * Math.PI) * 0.055 + (1 - p) * 0.02;
+        const shakeYaw = (Math.sin(state.time * 39) + Math.cos(state.time * 61) * 0.6) * shakeEnv;
+        const shakePitch = (Math.cos(state.time * 47) + Math.sin(state.time * 73) * 0.5) * shakeEnv - p * 0.16;
+        const shakeRoll = Math.sin(state.time * 31) * shakeEnv * 0.8;
+        camera.position.set(state.px, state.py - p * 0.22, state.pz);
+        camera.rotation.set(state.pitch + shakePitch, state.yaw + shakeYaw, shakeRoll);
+        const fadeBlack = Math.max(0, Math.min(1.0, (p - 0.18) / 0.72));
+        postUniforms.uTime.value = state.time;
+        postUniforms.uDistort.value = 0.22 + shakeEnv * 2.5;
+        postUniforms.uBlackout.value = fadeBlack;
+        blackoutCurtain.style.opacity = Math.max(0, (p - 0.32) / 0.62).toFixed(3);
+      }
+      renderMinimap();
+      if (state.endingSeq.elapsed >= state.endingSeq.duration) {
+        showArchivedDossier(state.endingSeq.recordType);
+      }
+    } else if (state.inTransitionMonologue) {
+    } else if (state.inLostVoid && !state.ended) {
+      state.time += dt;
+      state.lostTimer += dt;
+      stepPlayerWalk(dt, 1.8, 1.6, true, false);
+      camera.position.set(state.px, state.py, state.pz);
+      camera.rotation.set(state.pitch, state.yaw, 0);
+      if (lostVoidGroup) {
+        lostVoidGroup.children.forEach((sil, idx) => {
+          sil.rotation.y = Math.atan2(state.px - sil.position.x, state.pz - sil.position.z);
+          sil.userData.layers.forEach((l, lIdx) => {
+            l.position.x = (lIdx - 1) * 0.03 + Math.sin(state.time * 3.0 + idx) * 0.015;
+          });
+        });
+      }
+      renderMinimap();
+      if (state.lostTimer >= 5.0 && !state.ended) {
+        state.ended = true;
+        blackoutCurtain.style.opacity = '1';
+        setTimeout(() => showArchivedDossier('LOST'), 550);
+      }
+    } else if (state.inBedroom && !state.ended) {
+      state.time += dt;
+      if (state.bedroomSeq === 0) {
+        const mag = stepPlayerWalk(dt, 2.65, 1.95, true, true);
+        const bob = mag > 0.01 ? Math.sin(state.time * 8.0) * 0.028 : 0;
+        camera.position.set(state.px, state.py + bob, state.pz);
+        camera.rotation.set(state.pitch, state.yaw, 0);
+        if (Math.hypot(state.px - 0.20, state.pz - (-2.05)) < 0.95) {
+          state.bedroomSeq = 1;
+          state.bedroomTimer = 0;
+          subtitleBar.classList.remove('active');
+          reticleEl.style.opacity = '0';
+          const rawMonYaw = Math.atan2(-(0.20 - state.px), -(-2.835 - state.pz));
+          const dYaw = Math.atan2(Math.sin(rawMonYaw - state.yaw), Math.cos(rawMonYaw - state.yaw));
+          state.bedroomStartYaw = state.yaw;
+          state.bedroomMonYaw = state.yaw + dYaw;
+          state.bedroomStartPitch = state.pitch;
+        }
+      } else if (state.bedroomSeq === 1) {
+        state.bedroomTimer += dt;
+        const u = Math.min(1, state.bedroomTimer / 0.30);
+        const ease = u * u * (3 - 2 * u);
+        state.yaw = state.bedroomStartYaw + (state.bedroomMonYaw - state.bedroomStartYaw) * ease;
+        state.pitch = state.bedroomStartPitch + (-0.08 - state.bedroomStartPitch) * ease;
+        camera.position.set(state.px, state.py, state.pz);
+        camera.rotation.set(state.pitch, state.yaw, 0);
+        if (state.bedroomTimer >= 0.30) {
+          const backX = Math.max(-0.55, Math.min(1.15, state.px + 0.18));
+          const backZ = Math.min(1.85, state.pz + 1.28);
+          const bSil = createBlurredSilhouette({
+            x: backX,
+            z: backZ,
+            rotY: Math.atan2(state.px - backX, state.pz - backZ),
+            type: 'bedroom',
+            scale: 1.06,
+            heavySink: true
+          });
+          bSil.userData.fadeIn = 1.0;
+          bSil.userData.sinkWallMat.opacity = 0.76;
+          bSil.userData.sinkFloorMat.opacity = 0.82;
+          bSil.userData.layers.forEach((l, lIdx) => {
+            l.material.opacity = lIdx === 0 ? 0.96 : 0.58;
+          });
+          bedroomGroup.add(bSil);
+          state.bedroomShadow = bSil;
+          bedroomGroup.userData.sunLight.intensity = 0.74;
+          bedroomGroup.userData.warmAmb.intensity = 0.66;
+          bedroomGroup.userData.beamMat.opacity = 0.08;
+          bedroomGroup.userData.sunPatchMat.opacity = 0.18;
+          playEnvTone('sine', 92, 46, 0.55, 0.085);
+          state.bedroomSeq = 2;
+          state.bedroomTimer = 0;
+        }
+      } else if (state.bedroomSeq === 2) {
+        state.bedroomTimer += dt;
+        const bs = state.bedroomShadow;
+        bs.rotation.y = Math.atan2(state.px - bs.position.x, state.pz - bs.position.z);
+        bs.userData.layers.forEach((l, lIdx) => {
+          l.position.x = (lIdx - 1) * 0.035 + Math.sin(state.time * 14 + lIdx * 2.1) * 0.012;
+        });
+        camera.position.set(state.px, state.py, state.pz);
+        camera.rotation.set(state.pitch, state.yaw, 0);
+        camera.updateMatrixWorld();
+        const projScaleX = camera.projectionMatrix.elements[0];
+        const rx = Math.cos(bs.rotation.y) * 0.24, rz = -Math.sin(bs.rotation.y) * 0.24;
+        const shA = new THREE.Vector3(bs.position.x + rx, 1.32, bs.position.z + rz).applyMatrix4(camera.matrixWorldInverse);
+        const shB = new THREE.Vector3(bs.position.x - rx, 1.32, bs.position.z - rz).applyMatrix4(camera.matrixWorldInverse);
+        let leadNdcX = 99;
+        if (shA.z < -0.15) leadNdcX = Math.min(leadNdcX, (shA.x / -shA.z) * projScaleX);
+        if (shB.z < -0.15) leadNdcX = Math.min(leadNdcX, (shB.x / -shB.z) * projScaleX);
+        const ramp = Math.min(1, state.bedroomTimer / 0.18);
+        const baseRate = 0.45 + 1.50 * ramp;
+        const turnRate = leadNdcX <= 1.12 ? Math.max(0.68, baseRate * 0.36) : baseRate;
+        state.yaw -= turnRate * dt;
+        state.pitch += (-0.05 - state.pitch) * Math.min(1, dt * 5.5);
+        camera.rotation.set(state.pitch, state.yaw, 0);
+        camera.updateMatrixWorld();
+        const spineCam = new THREE.Vector3(bs.position.x, 1.32, bs.position.z).applyMatrix4(camera.matrixWorldInverse);
+        const spineNdcX = spineCam.z < -0.15 ? (spineCam.x / -spineCam.z) * projScaleX : 99;
+        if (spineNdcX <= 0.91 || state.bedroomTimer > 3.2) {
+          playPortalCrossSound();
+          state.bedroomSeq = 3;
+          state.bedroomTimer = 0;
+        }
+      } else if (state.bedroomSeq === 3) {
+        state.bedroomTimer += dt;
+        camera.position.set(state.px, state.py, state.pz);
+        camera.rotation.set(state.pitch, state.yaw, 0);
+        if (state.bedroomTimer >= 0.065 && !state.ended) {
+          state.ended = true;
+          if (audio.master) audio.master.gain.value = 0;
+          blackoutCurtain.style.transition = 'none';
+          blackoutCurtain.style.opacity = '1';
+          setTimeout(() => showArchivedDossier('TRUE_ESCAPE'), 550);
+        }
+      }
+    } else if (state.started && !state.pausedForModal && !state.ended) {
+      state.time += dt;
+      const sprint = (keys['ShiftLeft'] || keys['ShiftRight']) ? 1.42 : 1.0;
+  const mag = stepPlayerWalk(dt, 3.3 * sprint, 1.95, true, true);
+      const bob = mag > 0.01 ? Math.sin(state.time * (sprint > 1 ? 12 : 8.5)) * 0.035 : Math.sin(state.time * 1.8) * 0.006;
+      camera.position.set(state.px, state.py + bob, state.pz);
+      camera.rotation.set(state.pitch, state.yaw, 0);
+      handGroup.position.z += (-0.40 - handGroup.position.z) * Math.min(1, dt * 10);
+      handGroup.position.y = -0.24 + bob * 0.42;
+      handGroup.rotation.x = Math.sin(state.time * 2.2) * 0.012;
+      updateClockTexture(state.time);
+      updateLockerAndBoothAnimations(dt);
+      updatePortalAndTraversal(dt);
+      updateSilhouettesAndHorror(dt);
+      updateReticleState();
+      renderMinimap();
+      if (state.cycle === 0) {
+        const sec = (9 + Math.floor(state.time)) % 60;
+        const min = 14 + Math.floor((9 + Math.floor(state.time)) / 60);
+        hudClockStr.textContent = `02:${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+      } else if (state.cycle <= 4) {
+        hudClockStr.textContent = '02:14:09';
+      } else {
+        hudClockStr.textContent = '02:14:--';
+        hudCamId.textContent = `E-409${Math.floor(state.time * 5) % 3} · B09舱`;
+      }
+    } else if (!state.started) {
+      state.time += dt;
+      camera.position.set(Math.sin(state.time * 0.32) * 0.4, 1.68, 3.6);
+      camera.rotation.set(-0.02, Math.sin(state.time * 0.22) * 0.16, 0);
+      postUniforms.uTime.value = state.time;
+      updateLockerAndBoothAnimations(dt);
+      renderMinimap();
+    }
+    renderer.setRenderTarget(pixelRT);
+    renderer.render(worldScene, camera);
+    renderer.setRenderTarget(null);
+    renderer.render(postScene, postCamera);
+  }
+  function startNewSession() {
+    initAudio();
+    if (currentRoom) worldScene.remove(currentRoom);
+    if (nextRoom) worldScene.remove(nextRoom);
+    if (secretCrawlspace) worldScene.remove(secretCrawlspace);
+    if (lostVoidGroup) worldScene.remove(lostVoidGroup);
+    if (bedroomGroup) worldScene.remove(bedroomGroup);
+    nextRoom = null;
+    secretCrawlspace = null;
+    lostVoidGroup = null;
+    bedroomGroup = null;
+    worldScene.background = new THREE.Color(0x161a18);
+    worldScene.fog.color.setHex(0x141816);
+    worldScene.fog.density = 0.018;
+    handGroup.visible = true;
+    $('hud-top').style.display = 'flex';
+    monologueText.textContent = '';
+    termCodeInput.value = '4092';
+    if (audio.ready) {
+      audio.master.gain.value = state.muted ? 0 : 0.6;
+      audio.humOsc1.frequency.value = 60;
+      audio.humOsc2.frequency.value = 45;
+    }
+    Object.assign(state, baseRunState(), { started: true });
+  state.endingSeq.active = false; state.endingSeq.elapsed = 0;
+  state.pendingSpawn.active = false; state.pendingSpawn.timer = 0;
+  Object.assign(state.portal, { active: false, isSecretWindow: false, isPureWhiteExit: false, progress: 0 });
+  postUniforms.uBlackout.value = 0; blackoutCurtain.style.transition = ''; blackoutCurtain.style.opacity = '0'; reticleEl.style.opacity = '';
+    emitterCoreMat.color.setHex(0x6edff6);
+    hudCamId.textContent = 'E-4092 · B09舱';
+    currentRoom = createFacilityRoom(0, null, 0);
+    worldScene.add(currentRoom);
+    camera.position.set(state.px, state.py, state.pz);
+    camera.rotation.set(0, 0, 0);
+    introScreen.style.display = 'none';
+    endingScreen.classList.remove('visible');
+    endingScreen.style.display = 'none';
+    manualModal.classList.remove('open');
+    inspectModal.classList.remove('open');
+    enterCycle(0);
+    startLight8BitBGM();
+    renderMinimap();
+    try {
+      if (canvas.requestPointerLock) {
+        canvas.requestPointerLock();
+      }
+    } catch (err) {
+    }
+  }
+  function toggleFlashlight() {
+    state.flashlightOn = !state.flashlightOn;
+    flashLight.intensity = state.flashlightOn ? 2.45 : 0.0;
+    btnFlashlight.textContent = `照明 [L]: ${state.flashlightOn ? '开' : '关'}`;
+    btnFlashlight.classList.toggle('active', state.flashlightOn);
+    playUiBeep(state.flashlightOn ? 760 : 480, 0.06);
+  }
+  function toggleMute() {
+    state.muted = !state.muted;
+    if (audio.master) {
+      audio.master.gain.value = state.muted ? 0 : 0.6;
+    }
+    btnAudioToggle.textContent = `音频 [M]: ${state.muted ? '关' : '开'}`;
+    btnAudioToggle.classList.toggle('active', !state.muted);
+  }
+  function applyPolarityChange(useMaxPower) {
+    state.overrideUnlocked = true;
+    state.overrideArmed = true;
+    state.maxPowerArmed = Boolean(useMaxPower);
+    emitterCoreMat.color.setHex(useMaxPower ? 0xffffff : 0xff4275);
+    if (currentRoom && currentRoom.userData.crtScreen) {
+      currentRoom.userData.crtScreen.material.map = createTerminalScreenTexture(state.cycle, true, true);
+      currentRoom.userData.crtScreen.material.needsUpdate = true;
+    }
+    closeInspectModal();
+    playPortalUnfoldSound(true);
+    objectiveStrip.textContent = '警告：裂隙发生器极性已变更';
+    triggerBroadcast('“警告：检测到裂隙发生器极性被篡改。发射器功能可能因此改变。”', true);
+  }
+  function handleOverrideSubmit() {
+    const code = (termCodeInput.value || '').trim();
+    if (code === '4092') {
+      if (!state.lockerNoteRead && state.cycle < 4) {
+        termStatusHint.textContent = '当前电压正常，常规受试工号暂无需逆相校准。';
+        return;
+      }
+      applyPolarityChange(false);
+      return;
+    }
+    if (code === '3062') {
+      playUiBeep(920, 0.09);
+      termStatusHint.textContent = '';
+      termMaxpowerBox.classList.add('visible');
+      return;
+    }
+    termMaxpowerBox.classList.remove('visible');
+    termStatusHint.textContent = '';
+  }
+  btnStartGame.addEventListener('click', startNewSession);
+  btnRestartGame.addEventListener('click', startNewSession);
+  btnInspectClose.addEventListener('click', closeInspectModal);
+  btnOverrideTrigger.addEventListener('click', handleOverrideSubmit);
+  btnMaxpowerYes.addEventListener('click', () => applyPolarityChange(true));
+  btnMaxpowerNo.addEventListener('click', () => applyPolarityChange(false));
+  btnOpenTermPort.addEventListener('click', () => {
+    btnOpenTermPort.style.display = 'none';
+    termCodePanel.classList.add('visible');
+    playUiBeep(680, 0.06);
+  });
+  termCodeInput.addEventListener('focus', () => {
+    termCodeInput.select();
+  });
+  btnFlashlight.addEventListener('click', toggleFlashlight);
+  btnAudioToggle.addEventListener('click', toggleMute);
+  btnBriefingHelp.addEventListener('click', () => toggleManualModal());
+  btnTouchToggle.addEventListener('click', () => {
+    state.touchEnabled = !state.touchEnabled;
+    touchUi.classList.toggle('enabled', state.touchEnabled);
+    btnTouchToggle.classList.toggle('active', state.touchEnabled);
+  });
+  canvas.addEventListener('mousedown', (e) => {
+    if (!state.started || state.pausedForModal || state.ended || state.endingSeq.active) return;
+    initAudio();
+    if (document.pointerLockElement === canvas) {
+      if (e.button === 0) tryDeployPortal();
+      if (e.button === 2) handleInteract();
+      return;
+    }
+    isDraggingLook = true;
+    lastPointerX = e.clientX;
+    lastPointerY = e.clientY;
+    canvas.dataset.dragMoved = '0';
+    try {
+      if (canvas.requestPointerLock) {
+        canvas.requestPointerLock();
+      }
+    } catch (err) {
+    }
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!state.started || state.pausedForModal || state.ended || (state.inBedroom && state.bedroomSeq > 0)) return;
+    if (state.endingSeq.active && state.endingSeq.recordType !== 'RETAINED') return;
+    const damp = state.endingSeq.active ? Math.max(0.18, 0.55 * (1 - state.endingSeq.elapsed / state.endingSeq.duration)) : 1.0;
+    const sens = 0.0024 * damp;
+    if (document.pointerLockElement === canvas) {
+      state.yaw -= e.movementX * sens;
+      state.pitch = Math.max(-1.32, Math.min(1.32, state.pitch - e.movementY * sens));
+    } else if (isDraggingLook) {
+      const dx = e.clientX - lastPointerX;
+      const dy = e.clientY - lastPointerY;
+      if (Math.abs(dx) + Math.abs(dy) > 4) {
+        canvas.dataset.dragMoved = '1';
+      }
+      lastPointerX = e.clientX;
+      lastPointerY = e.clientY;
+      state.yaw -= dx * 0.0042;
+      state.pitch = Math.max(-1.32, Math.min(1.32, state.pitch - dy * 0.0038));
+    }
+  });
+  window.addEventListener('mouseup', (e) => {
+    if (!isDraggingLook) return;
+    isDraggingLook = false;
+    if (document.pointerLockElement !== canvas && canvas.dataset.dragMoved === '0' && e.target === canvas) {
+      if (e.button === 0) tryDeployPortal();
+      if (e.button === 2) handleInteract();
+    }
+  });
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+  let touchLookId = null;
+  let touchLastX = 0;
+  let touchLastY = 0;
+  if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+    state.touchEnabled = true;
+    touchUi.classList.add('enabled');
+    btnTouchToggle.classList.add('active');
+  }
+  canvas.addEventListener('touchstart', (e) => {
+    if (!state.started || state.pausedForModal || state.ended || state.endingSeq.active) return;
+    initAudio();
+    const t = e.changedTouches[0];
+    touchLookId = t.identifier;
+    touchLastX = t.clientX;
+    touchLastY = t.clientY;
+  }, { passive: true });
+  canvas.addEventListener('touchmove', (e) => {
+    if (touchLookId === null || (state.inBedroom && state.bedroomSeq > 0)) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (t.identifier === touchLookId) {
+        const dx = t.clientX - touchLastX;
+        const dy = t.clientY - touchLastY;
+        touchLastX = t.clientX;
+        touchLastY = t.clientY;
+        state.yaw -= dx * 0.0055;
+        state.pitch = Math.max(-1.3, Math.min(1.3, state.pitch - dy * 0.0048));
+      }
+    }
+  }, { passive: true });
+  canvas.addEventListener('touchend', () => { touchLookId = null; }, { passive: true });
+  function bindHoldButton(id, field) {
+    const el = document.getElementById(id);
+    const setVal = (v) => { touchMove[field] = v; };
+    el.addEventListener('pointerdown', (e) => { e.preventDefault(); setVal(true); });
+    el.addEventListener('pointerup', () => setVal(false));
+    el.addEventListener('pointerleave', () => setVal(false));
+    el.addEventListener('pointercancel', () => setVal(false));
+  }
+  bindHoldButton('t-up', 'up');
+  bindHoldButton('t-down', 'down');
+  bindHoldButton('t-left', 'left');
+  bindHoldButton('t-right', 'right');
+  $('t-portal').addEventListener('click', tryDeployPortal);
+  $('t-interact').addEventListener('click', handleInteract);
+  $('t-manual').addEventListener('click', () => toggleManualModal());
+  window.addEventListener('keydown', (e) => {
+    if (document.activeElement === termCodeInput) {
+      if (e.code === 'Enter') {
+        e.preventDefault();
+        handleOverrideSubmit();
+      } else if (e.code === 'Escape') {
+        e.preventDefault();
+        termCodeInput.blur();
+        closeInspectModal();
+      }
+      return;
+    }
+    if (!state.pausedForModal) {
+      keys[e.code] = true;
+    }
+    if (!state.started) {
+      if (e.code === 'Enter') startNewSession();
+      return;
+    }
+    if (state.endingSeq.active || state.inTransitionMonologue) return;
+    if ((e.code === 'Tab' || e.code === 'KeyH') && !state.inLostVoid && !state.inBedroom) {
+      e.preventDefault();
+      toggleManualModal();
+      return;
+    }
+    if (state.pausedForModal) {
+      if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Escape') {
+        e.preventDefault();
+        if (state.manualOpen) toggleManualModal();
+        else closeInspectModal();
+      }
+      return;
+    }
+    if (e.code === 'KeyF') tryDeployPortal();
+    if (e.code === 'KeyE') handleInteract();
+    if (e.code === 'KeyL') toggleFlashlight();
+    if (e.code === 'KeyM') toggleMute();
+  });
+  window.addEventListener('keyup', (e) => {
+    keys[e.code] = false;
+  });
+  window.onload = () => {
+    handleResize();
+    currentRoom = createFacilityRoom(0, null, 0);
+    worldScene.add(currentRoom);
+    camera.position.set(0, 1.66, 3.6);
+    updateClockTexture(0);
+    renderMinimap();
+    requestAnimationFrame(animate);
+  };
+})();
+</script>
+</body>
+</html>
