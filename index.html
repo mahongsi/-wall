@@ -303,7 +303,7 @@
   const lambert = (o) => new THREE.MeshLambertMaterial(o);
   const basic = (o) => new THREE.MeshBasicMaterial(o);
   const boxGeo = (w, h, d) => new THREE.BoxGeometry(w, h, d);
-  const planeGeo = (w, h) => new THREE.PlaneGeometry(w, h);
+  const planeGeo = (w, h) => new THREE.PlaneGeometry(w, h, w > 2.1 ? Math.ceil(w / 0.75) : 1, h > 2.1 ? Math.ceil(h / 0.75) : 1);
   const cylGeo = (rt, rb, h, s) => new THREE.CylinderGeometry(rt, rb, h, s);
   const mkBox = (w, h, d, mat, x = 0, y = 0, z = 0, p = null) => {
     const m = new THREE.Mesh(boxGeo(w, h, d), mat);
@@ -1261,7 +1261,7 @@
   const camera = new THREE.PerspectiveCamera(72, 16 / 9, 0.08, 46);
   camera.rotation.order = 'YXZ';
   worldScene.add(camera);
-  const flashLight = new THREE.SpotLight(0xf2f8ff, 0.0, 24, Math.PI / 3.3, 0.48, 1.1);
+  const flashLight = new THREE.SpotLight(0xf2f8ff, 0.0, 24, Math.PI / 3.3, 0.48, 1.0);
   flashLight.position.set(0.14, -0.08, 0);
   flashLight.target.position.set(0, -0.04, -6);
   camera.add(flashLight);
@@ -1421,10 +1421,9 @@
     const u1 = ((x1 + ROOM_HALF) / (ROOM_HALF * 2)) * 4.0;
     const v0 = (y0 / ROOM_H) * 2.0;
     const v1 = (y1 / ROOM_H) * 2.0;
-    uvAttr.setXY(0, u0, v1);
-    uvAttr.setXY(1, u1, v1);
-    uvAttr.setXY(2, u0, v0);
-    uvAttr.setXY(3, u1, v0);
+    for (let k = 0; k < uvAttr.count; k++) {
+      uvAttr.setXY(k, u0 + uvAttr.getX(k) * (u1 - u0), v0 + uvAttr.getY(k) * (v1 - v0));
+    }
     uvAttr.needsUpdate = true;
     const m = new THREE.Mesh(geom, wallMat);
     m.position.set((x0 + x1) * 0.5, (y0 + y1) * 0.5, 0);
@@ -1758,12 +1757,14 @@
       color: wallTint,
       side: THREE.DoubleSide
     });
-    const floor = new THREE.Mesh(planeGeo(ROOM_HALF * 2, ROOM_HALF * 2), lambert({ map: textures.floor }));
+    const floor = new THREE.Mesh(planeGeo(ROOM_HALF * 2, ROOM_HALF * 2), lambert({ map: textures.floor, side: THREE.DoubleSide }));
     floor.rotation.x = -Math.PI / 2;
+    floor.frustumCulled = false;
     root.add(floor);
-    const ceiling = new THREE.Mesh(planeGeo(ROOM_HALF * 2, ROOM_HALF * 2), lambert({ map: textures.ceiling }));
+    const ceiling = new THREE.Mesh(planeGeo(ROOM_HALF * 2, ROOM_HALF * 2), lambert({ map: textures.ceiling, side: THREE.DoubleSide }));
     ceiling.rotation.x = Math.PI / 2;
     ceiling.position.y = ROOM_H;
+    ceiling.frustumCulled = false;
     root.add(ceiling);
     const walls = {};
     ['N', 'S', 'E', 'W'].forEach((dir) => {
@@ -1904,7 +1905,7 @@
       cycleIdx >= 6 ? 0xffd5c8 : 0xf2fff6,
       0.42 + 0.65 * lb,
       20,
-      1.15
+      1.0
     );
     mainPoint.position.set(0, 3.4, 0);
     root.add(mainPoint);
