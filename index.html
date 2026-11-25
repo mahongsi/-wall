@@ -1311,7 +1311,11 @@
       }
     `,
     fragmentShader: `
+      #ifdef GL_FRAGMENT_PRECISION_HIGH
+      precision highp float;
+      #else
       precision mediump float;
+      #endif
       uniform sampler2D tDiffuse;
       uniform vec2 uResolution;
       uniform float uTime;
@@ -1322,16 +1326,19 @@
       uniform float uBlackout;
       varying vec2 vUv;
       float hash(vec2 p) {
-        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+        vec2 q = fract(mod(p, 128.0) * vec2(0.1673, 0.2719));
+        q += dot(q, q.yx + 3.33);
+        return fract((q.x + q.y) * (q.x + 1.37));
       }
       void main() {
+        float t = mod(uTime, 62.831853);
         vec2 uv = vUv;
         vec2 centered = uv * 2.0 - 1.0;
         float r2 = dot(centered, centered);
         uv = (centered * (1.0 + 0.025 * uDistort * r2)) * 0.5 + 0.5;
         float scanY = floor(uv.y * uResolution.y) / uResolution.y;
-        float tapeBar = smoothstep(0.96, 1.0, sin(scanY * 6.5 - uTime * 1.9));
-        float lineJitter = (hash(vec2(scanY, floor(uTime * 16.0))) - 0.5) * 0.008 * uDistort * (0.2 + tapeBar * 1.8);
+        float tapeBar = smoothstep(0.96, 1.0, sin(scanY * 6.5 - mod(uTime * 1.9, 6.283185)));
+        float lineJitter = (hash(vec2(scanY * 64.0, mod(floor(t * 16.0), 64.0))) - 0.5) * 0.008 * uDistort * (0.2 + tapeBar * 1.8);
         uv.x += lineJitter;
         uv = clamp(uv, 0.001, 0.999);
         float chroma = (0.0008 + 0.0055 * uDistort) * (0.25 + r2 * 0.85);
@@ -1347,9 +1354,9 @@
         vec3 coldTape = vec3(luma * 0.97, luma * 1.01, luma * 0.95);
         float redAccent = max(0.0, col.r - max(col.g, col.b) * 1.3);
         col = mix(col, coldTape + vec3(redAccent * 0.45, 0.0, 0.0), clamp(uDesat, 0.0, 0.85));
-        float grain = (hash(pix + fract(uTime * 31.0) * 100.0) - 0.5) * uNoise * 0.55;
+        float grain = (hash(mod(pix, 128.0) + fract(t * 7.3) * 37.0) - 0.5) * uNoise * 0.55;
         col += vec3(grain);
-        float scanline = 0.95 + 0.05 * sin(vUv.y * uResolution.y * 3.14159);
+        float scanline = 0.95 + 0.05 * sin(mod(vUv.y * uResolution.y, 2.0) * 3.14159);
         col *= scanline;
         float vig = 1.0 - r2 * (0.14 + 0.14 * uDistort + uBlackout * 0.95);
         col *= clamp(vig, 0.0, 1.0);
@@ -1359,7 +1366,7 @@
       }
     `
   });
-  const postQuad = new THREE.Mesh(planeGeo(2, 2), postMaterial);
+  const postQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMaterial);
   postScene.add(postQuad);
   function handleResize() {
     const w = Math.max(320, wrapEl.clientWidth);
@@ -1396,14 +1403,18 @@
         }
       `,
       fragmentShader: `
+        #ifdef GL_FRAGMENT_PRECISION_HIGH
+        precision highp float;
+        #else
         precision mediump float;
+        #endif
         uniform float uTime;
         uniform vec3 uColor;
         varying vec2 vUv;
         void main() {
           vec2 p = floor(vUv * vec2(32.0, 44.0)) / vec2(32.0, 44.0) - 0.5;
           float border = max(abs(p.x) * 2.0, abs(p.y) * 2.0);
-          float ring = sin(border * 24.0 - uTime * 7.0) * 0.5 + 0.5;
+          float ring = sin(border * 24.0 - mod(uTime * 7.0, 6.283185)) * 0.5 + 0.5;
           float edgeGlow = smoothstep(0.66, 0.99, border);
           float alpha = 0.06 + edgeGlow * 0.58 + ring * 0.06;
           vec3 c = mix(uColor * 0.8, vec3(1.0), edgeGlow * 0.55);
@@ -3008,7 +3019,7 @@
       anim.shutterR.position.x = halfW * 0.5 + (halfW * 0.5) * ease;
       anim.ringGroup.scale.x = 0.02 + 0.98 * ease;
       anim.centerSeam.visible = p.progress < 0.42;
-      anim.veilMat.uniforms.uTime.value = state.time;
+      anim.veilMat.uniforms.uTime.value = state.time % 628.3185;
     }
     const meta = WALL_META[p.dir];
     const planeDist = (state.px * meta.nx + state.pz * meta.nz) - ROOM_HALF;
@@ -3213,7 +3224,7 @@
       audio.staticGain.gain.value = Math.min(0.14, targetStatic);
       audio.humOsc1.frequency.value = Math.max(44, 60 - state.cycle * 2.0);
     }
-    postUniforms.uTime.value = state.time;
+    postUniforms.uTime.value = state.time % 628.3185;
     postUniforms.uDesat.value = Math.min(0.82, state.curDesat);
     postUniforms.uDistort.value = Math.min(0.38, state.curDistort + state.extraGlitch * 0.4);
     postUniforms.uNoise.value = Math.min(0.26, state.curNoise + state.extraGlitch * 0.25);
@@ -3333,7 +3344,7 @@
         camera.position.set(state.px, state.py - Math.max(0, p - 0.35) * 0.18, state.pz);
         camera.rotation.set(state.pitch + tPitch, state.yaw + tYaw, Math.sin(state.time * 23) * tremor * 0.6);
         const fadeBlack = Math.max(0, Math.min(1.0, (p - 0.42) / 0.52));
-        postUniforms.uTime.value = state.time;
+        postUniforms.uTime.value = state.time % 628.3185;
         postUniforms.uDistort.value = 0.22 + p * 0.18;
         postUniforms.uNoise.value = 0.15 + p * 0.12;
         postUniforms.uBlackout.value = fadeBlack;
@@ -3346,7 +3357,7 @@
         camera.position.set(state.px, state.py - p * 0.22, state.pz);
         camera.rotation.set(state.pitch + shakePitch, state.yaw + shakeYaw, shakeRoll);
         const fadeBlack = Math.max(0, Math.min(1.0, (p - 0.18) / 0.72));
-        postUniforms.uTime.value = state.time;
+        postUniforms.uTime.value = state.time % 628.3185;
         postUniforms.uDistort.value = 0.22 + shakeEnv * 2.5;
         postUniforms.uBlackout.value = fadeBlack;
         blackoutCurtain.style.opacity = Math.max(0, (p - 0.32) / 0.62).toFixed(3);
@@ -3502,7 +3513,7 @@
       state.time += dt;
       camera.position.set(Math.sin(state.time * 0.32) * 0.4, 1.68, 3.6);
       camera.rotation.set(-0.02, Math.sin(state.time * 0.22) * 0.16, 0);
-      postUniforms.uTime.value = state.time;
+      postUniforms.uTime.value = state.time % 628.3185;
       updateLockerAndBoothAnimations(dt);
       renderMinimap();
     }
