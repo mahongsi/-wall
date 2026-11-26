@@ -170,11 +170,11 @@
           <span id="hud-clock-str">02:14:09</span>
         </div>
         <div class="tel-grid">
-          <div class="tel-item">折叠进度 <span class="tel-val" id="hud-cycle">00/07</span></div>
+          <div class="tel-item">折叠进度 <span class="tel-val" id="hud-cycle">00/08</span></div>
           <div class="tel-item">信号偏移 <span class="tel-val" id="hud-corrupt">0%</span></div>
           <div class="tel-item" style="grid-column: span 2;">
             序列指示 <span class="seg-bar" id="hud-seg-bar">
-              <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
             </span>
             &nbsp;|&nbsp; 频谱：<span class="tel-val" id="hud-emf" style="color:#8ce6a2;">平稳</span>
           </div>
@@ -303,7 +303,7 @@
   const lambert = (o) => new THREE.MeshLambertMaterial(o);
   const basic = (o) => new THREE.MeshBasicMaterial(o);
   const boxGeo = (w, h, d) => new THREE.BoxGeometry(w, h, d);
-  const planeGeo = (w, h) => new THREE.PlaneGeometry(w, h, w > 2.1 ? Math.ceil(w / 0.75) : 1, h > 2.1 ? Math.ceil(h / 0.75) : 1);
+  const planeGeo = (w, h) => new THREE.PlaneGeometry(w, h);
   const cylGeo = (rt, rb, h, s) => new THREE.CylinderGeometry(rt, rb, h, s);
   const mkBox = (w, h, d, mat, x = 0, y = 0, z = 0, p = null) => {
     const m = new THREE.Mesh(boxGeo(w, h, d), mat);
@@ -331,6 +331,8 @@
   const subtitleBar = $('subtitle-bar'), subtitleText = $('subtitle-text'), subSpeakerLabel = $('sub-speaker-label'), subChannelTag = $('sub-channel-tag');
   const endTitle = $('end-title'), endDesc = $('end-desc'), endStats = $('end-stats'), endBadgeRight = $('end-badge-right'), endSealStamp = $('end-seal-stamp');
   const ROOM_HALF = 6.0;
+  const ROOM_COLLISION_MARGIN = 0.44;
+  const PORTAL_ENTRY_DEPTH = -ROOM_COLLISION_MARGIN - 0.05;
   const ROOM_H = 3.8;
   const WALL_THICK = 2.15;
   const NEXT_DIST = ROOM_HALF * 2 + WALL_THICK;
@@ -340,6 +342,8 @@
   const WIN_W = 1.88;
   const WIN_H = 1.20;
   const WIN_CENTER_Y = 1.78;
+  const WINDOW_BOOTH_WIDTH = 2.5;
+  const WINDOW_PORTAL_RANGE = 12.5;
   const WALL_META = {
     N: { label: '北侧墙 N-01', code: 'N-01', nx: 0, nz: -1, tx: 1, tz: 0, opp: 'S', rotY: 0 },
     S: { label: '南侧墙 S-03', code: 'S-03', nx: 0, nz: 1, tx: -1, tz: 0, opp: 'N', rotY: Math.PI },
@@ -866,6 +870,7 @@
       return;
     }
     state.manualOpen = true;
+    clearPlayerInput();
     state.pausedForModal = true;
     btnBriefingHelp.classList.remove('notify');
     if (document.pointerLockElement) {
@@ -1261,7 +1266,7 @@
   const camera = new THREE.PerspectiveCamera(72, 16 / 9, 0.08, 46);
   camera.rotation.order = 'YXZ';
   worldScene.add(camera);
-  const flashLight = new THREE.SpotLight(0xf2f8ff, 0.0, 24, Math.PI / 3.3, 0.48, 1.0);
+  const flashLight = new THREE.SpotLight(0xf2f8ff, 0.0, 24, Math.PI / 3.3, 0.48, 1.1);
   flashLight.position.set(0.14, -0.08, 0);
   flashLight.target.position.set(0, -0.04, -6);
   camera.add(flashLight);
@@ -1311,11 +1316,7 @@
       }
     `,
     fragmentShader: `
-      #ifdef GL_FRAGMENT_PRECISION_HIGH
-      precision highp float;
-      #else
       precision mediump float;
-      #endif
       uniform sampler2D tDiffuse;
       uniform vec2 uResolution;
       uniform float uTime;
@@ -1326,19 +1327,16 @@
       uniform float uBlackout;
       varying vec2 vUv;
       float hash(vec2 p) {
-        vec2 q = fract(mod(p, 128.0) * vec2(0.1673, 0.2719));
-        q += dot(q, q.yx + 3.33);
-        return fract((q.x + q.y) * (q.x + 1.37));
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
       }
       void main() {
-        float t = mod(uTime, 62.831853);
         vec2 uv = vUv;
         vec2 centered = uv * 2.0 - 1.0;
         float r2 = dot(centered, centered);
         uv = (centered * (1.0 + 0.025 * uDistort * r2)) * 0.5 + 0.5;
         float scanY = floor(uv.y * uResolution.y) / uResolution.y;
-        float tapeBar = smoothstep(0.96, 1.0, sin(scanY * 6.5 - mod(uTime * 1.9, 6.283185)));
-        float lineJitter = (hash(vec2(scanY * 64.0, mod(floor(t * 16.0), 64.0))) - 0.5) * 0.008 * uDistort * (0.2 + tapeBar * 1.8);
+        float tapeBar = smoothstep(0.96, 1.0, sin(scanY * 6.5 - uTime * 1.9));
+        float lineJitter = (hash(vec2(scanY, floor(uTime * 16.0))) - 0.5) * 0.008 * uDistort * (0.2 + tapeBar * 1.8);
         uv.x += lineJitter;
         uv = clamp(uv, 0.001, 0.999);
         float chroma = (0.0008 + 0.0055 * uDistort) * (0.25 + r2 * 0.85);
@@ -1354,9 +1352,9 @@
         vec3 coldTape = vec3(luma * 0.97, luma * 1.01, luma * 0.95);
         float redAccent = max(0.0, col.r - max(col.g, col.b) * 1.3);
         col = mix(col, coldTape + vec3(redAccent * 0.45, 0.0, 0.0), clamp(uDesat, 0.0, 0.85));
-        float grain = (hash(mod(pix, 128.0) + fract(t * 7.3) * 37.0) - 0.5) * uNoise * 0.55;
+        float grain = (hash(pix + fract(uTime * 31.0) * 100.0) - 0.5) * uNoise * 0.55;
         col += vec3(grain);
-        float scanline = 0.95 + 0.05 * sin(mod(vUv.y * uResolution.y, 2.0) * 3.14159);
+        float scanline = 0.95 + 0.05 * sin(vUv.y * uResolution.y * 3.14159);
         col *= scanline;
         float vig = 1.0 - r2 * (0.14 + 0.14 * uDistort + uBlackout * 0.95);
         col *= clamp(vig, 0.0, 1.0);
@@ -1366,7 +1364,7 @@
       }
     `
   });
-  const postQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMaterial);
+  const postQuad = new THREE.Mesh(planeGeo(2, 2), postMaterial);
   postScene.add(postQuad);
   function handleResize() {
     const w = Math.max(320, wrapEl.clientWidth);
@@ -1403,18 +1401,14 @@
         }
       `,
       fragmentShader: `
-        #ifdef GL_FRAGMENT_PRECISION_HIGH
-        precision highp float;
-        #else
         precision mediump float;
-        #endif
         uniform float uTime;
         uniform vec3 uColor;
         varying vec2 vUv;
         void main() {
           vec2 p = floor(vUv * vec2(32.0, 44.0)) / vec2(32.0, 44.0) - 0.5;
           float border = max(abs(p.x) * 2.0, abs(p.y) * 2.0);
-          float ring = sin(border * 24.0 - mod(uTime * 7.0, 6.283185)) * 0.5 + 0.5;
+          float ring = sin(border * 24.0 - uTime * 7.0) * 0.5 + 0.5;
           float edgeGlow = smoothstep(0.66, 0.99, border);
           float alpha = 0.06 + edgeGlow * 0.58 + ring * 0.06;
           vec3 c = mix(uColor * 0.8, vec3(1.0), edgeGlow * 0.55);
@@ -1432,9 +1426,10 @@
     const u1 = ((x1 + ROOM_HALF) / (ROOM_HALF * 2)) * 4.0;
     const v0 = (y0 / ROOM_H) * 2.0;
     const v1 = (y1 / ROOM_H) * 2.0;
-    for (let k = 0; k < uvAttr.count; k++) {
-      uvAttr.setXY(k, u0 + uvAttr.getX(k) * (u1 - u0), v0 + uvAttr.getY(k) * (v1 - v0));
-    }
+    uvAttr.setXY(0, u0, v1);
+    uvAttr.setXY(1, u1, v1);
+    uvAttr.setXY(2, u0, v0);
+    uvAttr.setXY(3, u1, v0);
     uvAttr.needsUpdate = true;
     const m = new THREE.Mesh(geom, wallMat);
     m.position.set((x0 + x1) * 0.5, (y0 + y1) * 0.5, 0);
@@ -1592,6 +1587,9 @@
       const barBot = mkBox(WIN_W + 0.16, 0.09, 0.40, frameMat, WIN_LOCAL_X, WIN_CENTER_Y - WIN_H * 0.5 - 0.03, -0.14);
       const barL = mkBox(0.08, WIN_H, 0.36, frameMat, WIN_LOCAL_X - WIN_W * 0.5 - 0.03, WIN_CENTER_Y, -0.14);
       const barR = mkBox(0.08, WIN_H, 0.36, frameMat, WIN_LOCAL_X + WIN_W * 0.5 + 0.03, WIN_CENTER_Y, -0.14);
+      for (const bar of [barTop, barBot, barL, barR]) {
+        bar.userData.isWindowFrame = true;
+      }
       group.add(barTop, barBot, barL, barR);
       const glass = new THREE.Mesh(
         planeGeo(WIN_W, WIN_H),
@@ -1607,7 +1605,7 @@
       glass.userData = { interactType: 'window' };
       group.add(glass);
       const boothGroup = new THREE.Group();
-      const boothShell = mkBox(2.5, 2.7, 1.82, lambert({ color: 0x1c201e, side: THREE.BackSide }), WIN_LOCAL_X, 1.35, -0.92, boothGroup);
+      const boothShell = mkBox(WINDOW_BOOTH_WIDTH, 2.7, 1.82, lambert({ color: 0x1c201e, side: THREE.BackSide }), WIN_LOCAL_X, 1.35, -0.92, boothGroup);
       const consoleDesk = mkBox(1.7, 0.12, 0.55, lambert({ color: 0x2a2f2d }), WIN_LOCAL_X, 1.12, -0.58);
       consoleDesk.rotation.x = 0.22;
       boothGroup.add(consoleDesk);
@@ -1623,7 +1621,6 @@
       boothDimLight.position.set(WIN_LOCAL_X - 0.45, 1.85, -1.15);
       boothGroup.add(boothDimLight);
       group.add(boothGroup);
-      group.userData.boothGroup = boothGroup;
       group.userData.boothRec = { recLedMat, boothDimLight };
     }
     if (dir === 'N') {
@@ -1702,7 +1699,7 @@
     };
     return g;
   }
-  function buildInteractiveLocker(cycleIdx, interactables) {
+  function buildInteractiveLocker(cycleIdx) {
     const lockerGroup = new THREE.Group();
     lockerGroup.position.set(-3.0, 0, 2.9);
     lockerGroup.rotation.y = Math.PI;
@@ -1724,10 +1721,10 @@
       noteMesh.rotation.y = 0.18;
       noteMesh.userData = { interactType: 'lockerNote', lockerRef: lockerGroup };
       lockerGroup.add(noteMesh);
-      interactables.push(noteMesh);
       const inkStrip = new THREE.Mesh(planeGeo(0.18, 0.11), basic({ color: 0x3b352e }));
       inkStrip.rotation.x = -Math.PI / 2;
       inkStrip.position.set(0.04, 1.273, 0.05);
+      inkStrip.userData = noteMesh.userData;
       lockerGroup.add(inkStrip);
       const oldBadge = mkBox(0.10, 0.01, 0.07, lambert({ color: 0x7c8f88 }), -0.17, 1.263, -0.04);
       oldBadge.rotation.y = -0.35;
@@ -1745,10 +1742,8 @@
       const padlock = mkBox(0.06, 0.08, 0.04, lambert({ color: 0x8a733e }), W - 0.12, 0.98, 0.035);
       padlock.userData = { interactType: 'lockerDoor', lockerRef: lockerGroup };
       doorPivot.add(padlock);
-      interactables.push(padlock);
     }
     lockerGroup.add(doorPivot);
-    interactables.push(doorMesh);
     lockerGroup.userData = {
       unlocked,
       isOpen: false,
@@ -1768,14 +1763,12 @@
       color: wallTint,
       side: THREE.DoubleSide
     });
-    const floor = new THREE.Mesh(planeGeo(ROOM_HALF * 2, ROOM_HALF * 2), lambert({ map: textures.floor, side: THREE.DoubleSide }));
+    const floor = new THREE.Mesh(planeGeo(ROOM_HALF * 2, ROOM_HALF * 2), lambert({ map: textures.floor }));
     floor.rotation.x = -Math.PI / 2;
-    floor.frustumCulled = false;
     root.add(floor);
-    const ceiling = new THREE.Mesh(planeGeo(ROOM_HALF * 2, ROOM_HALF * 2), lambert({ map: textures.ceiling, side: THREE.DoubleSide }));
+    const ceiling = new THREE.Mesh(planeGeo(ROOM_HALF * 2, ROOM_HALF * 2), lambert({ map: textures.ceiling }));
     ceiling.rotation.x = Math.PI / 2;
     ceiling.position.y = ROOM_H;
-    ceiling.frustumCulled = false;
     root.add(ceiling);
     const walls = {};
     ['N', 'S', 'E', 'W'].forEach((dir) => {
@@ -1793,13 +1786,7 @@
       walls[dir] = wg;
       root.add(wg);
     });
-    const interactables = [];
     const colliders = [];
-    root.traverse((obj) => {
-      if (obj.userData && obj.userData.interactType) {
-        interactables.push(obj);
-      }
-    });
     const deskGroup = new THREE.Group();
     deskGroup.position.set(-2.9, 0, -2.9);
     const woodMat = lambert({ color: 0x5c4e41 });
@@ -1820,7 +1807,6 @@
     crtScreen.userData = { interactType: 'terminal', screenMesh: crtScreen };
     crtBox.userData = { interactType: 'terminal', screenMesh: crtScreen };
     deskGroup.add(crtScreen);
-    interactables.push(crtScreen, crtBox);
     const mug = new THREE.Mesh(cylGeo(0.055, 0.05, 0.11, 8), lambert({ color: cycleIdx >= 4 ? 0x7c2a2a : 0xe0dbd0 }));
     mug.position.set(cycleIdx === 0 ? 0.48 : -0.54, 0.875, 0.16);
     deskGroup.add(mug);
@@ -1838,7 +1824,6 @@
     calibBtn.userData = { interactType: 'calibrator', btnMat: calibBtnMat };
     pylonBody.userData = { interactType: 'calibrator', btnMat: calibBtnMat };
     pylonGroup.add(calibBtn);
-    interactables.push(calibBtn, pylonBody);
     if (cycleIdx >= 3) {
       const noteTex = makePixelTexture(32, 24, (ctx, w, h) => {
         fRect(ctx, '#e5dfd0', 0, 0, w, h);
@@ -1858,16 +1843,16 @@
       backNote.position.set(0.04, 1.16, -0.256);
       backNote.userData = { interactType: 'pylonBackNote' };
       pylonGroup.add(backNote);
-      interactables.push(backNote);
       const tapeStrip = new THREE.Mesh(planeGeo(0.08, 0.025), basic({ color: 0xc2ab6b, side: THREE.DoubleSide }));
       tapeStrip.rotation.y = Math.PI;
       tapeStrip.rotation.z = 0.05;
       tapeStrip.position.set(0.04, 1.22, -0.258);
+      tapeStrip.userData = backNote.userData;
       pylonGroup.add(tapeStrip);
     }
     root.add(pylonGroup);
     colliders.push({ minX: 2.52, maxX: 3.28, minZ: -3.22, maxZ: -2.58 });
-    const lockerGroup = buildInteractiveLocker(cycleIdx, interactables);
+    const lockerGroup = buildInteractiveLocker(cycleIdx);
     root.add(lockerGroup);
     if (cycleIdx >= 4) {
       const fallenLock = mkBox(0.07, 0.035, 0.09, lambert({ color: 0x8a733e }), -3.28, 0.02, 2.52);
@@ -1884,7 +1869,6 @@
     const rack = mkBox(0.76, 1.82, 0.58, lambert({ color: 0x363b3a }), 3.0, 0.91, 2.9);
     rack.userData = { interactType: 'taperack' };
     root.add(rack);
-    interactables.push(rack);
     const reel1 = new THREE.Mesh(cylGeo(0.15, 0.15, 0.04, 10), lambert({ color: 0x9ca39e }));
     reel1.rotation.z = Math.PI / 2;
     reel1.position.set(2.60, 1.36, 2.74);
@@ -1916,7 +1900,7 @@
       cycleIdx >= 6 ? 0xffd5c8 : 0xf2fff6,
       0.42 + 0.65 * lb,
       20,
-      1.0
+      1.15
     );
     mainPoint.position.set(0, 3.4, 0);
     root.add(mainPoint);
@@ -1925,7 +1909,6 @@
       cycleIdx,
       wallMat,
       walls,
-      interactables,
       colliders,
       silhouettes,
       lockerGroup,
@@ -1970,8 +1953,8 @@
     const fill = new THREE.AmbientLight(0x756c66, 0.68);
     g.add(fill);
     const numberedTapes = {
-      '3,-3': '6',
-      '1,0':  '0',
+      '3,-3': '0',
+      '1,0':  '6',
       '4,2':  '3',
       '2,4':  '2'
     };
@@ -2049,34 +2032,78 @@
     });
   }
   const raycaster = new THREE.Raycaster();
+  const sharedRoomTextures = new Set([...Object.values(textures), clockTexture]);
+  function removeSceneObject(root, retainedMaterial) {
+    if (!root) return;
+    if (root.parent) root.parent.remove(root);
+    const geometries = new Set();
+    const materials = new Set();
+    const maps = new Set();
+    root.traverse(({ geometry, material }) => {
+      if (geometry) geometries.add(geometry);
+      if (!material || material === retainedMaterial) return;
+      materials.add(material);
+      if (material.map && !sharedRoomTextures.has(material.map)) maps.add(material.map);
+    });
+    geometries.forEach((geometry) => geometry.dispose());
+    materials.forEach((material) => material.dispose());
+    maps.forEach((map) => map.dispose());
+  }
+  function replaceGeneratedMap(material, map) {
+    material.map.dispose();
+    material.map = map;
+    material.needsUpdate = true;
+  }
   function replaceRoomWall(room, dir, holeSpec) {
-    const oldWall = room.userData.walls[dir];
-    if (oldWall) {
-      room.remove(oldWall);
-    }
+    removeSceneObject(room.userData.walls[dir], room.userData.wallMat);
     const newWall = buildPerimeterWall(dir, room.userData.wallMat, room.userData.cycleIdx, holeSpec);
     room.userData.walls[dir] = newWall;
     room.add(newWall);
-    const list = [];
-    room.traverse((obj) => {
-      if (obj.userData && obj.userData.interactType) {
-        list.push(obj);
-      }
+  }
+  function clearActivePortal() {
+    if (!state.portal.active) return;
+    replaceRoomWall(currentRoom, state.portal.dir, null);
+    state.portal.active = false;
+    if (nextRoom) {
+      removeSceneObject(nextRoom);
+      nextRoom = null;
+    }
+    if (secretCrawlspace) {
+      removeSceneObject(secretCrawlspace);
+      secretCrawlspace = null;
+    }
+  }
+  function getAimedRoomHits() {
+    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+    const meshes = [];
+    currentRoom.traverseVisible((object) => {
+      if (object.isMesh) meshes.push(object);
     });
-    room.userData.interactables = list;
+    return raycaster.intersectObjects(meshes, false);
+  }
+  function isWindowPortalTarget(hit) {
+    if (!hit) return false;
+    const { interactType, isWindowFrame } = hit.object.userData;
+    return interactType === 'window' || isWindowFrame === true;
   }
   function tryDeployPortal() {
     if (!state.started || state.pausedForModal || state.ended || state.endingSeq.active || state.inLostVoid || state.inBedroom || state.inTransitionMonologue) return;
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-    const allHits = raycaster.intersectObjects(currentRoom.children, true);
+    if (state.portal.active) {
+      const { nx, nz } = WALL_META[state.portal.dir];
+      const planeDist = state.px * nx + state.pz * nz - ROOM_HALF;
+      if (planeDist >= PORTAL_ENTRY_DEPTH) return;
+    }
+    const allHits = getAimedRoomHits();
     if (allHits.length === 0) return;
     const firstHit = allHits[0];
-    if (state.overrideArmed && firstHit.distance < 12.5) {
-      const ud = firstHit.object.userData || {};
-      if (ud.interactType === 'window' || ud.wallDir === 'W') {
+    if (isWindowPortalTarget(firstHit)) {
+      if (state.overrideArmed && firstHit.distance < WINDOW_PORTAL_RANGE) {
         openSecretWindowRift();
-        return;
+      } else if (!state.overrideArmed) {
+        playUiBeep(220, 0.12);
+        triggerBroadcast('“操作驳回：单向观察窗禁止展开常规裂隙。请对准混凝土承重墙面。”', false);
       }
+      return;
     }
     if (firstHit.object.userData && firstHit.object.userData.interactType === 'door') {
       if (state.maxPowerArmed) {
@@ -2085,11 +2112,6 @@
       }
       playUiBeep(220, 0.12);
       triggerBroadcast('“操作提示：防爆门表面涂有抗相位镀层，请将准星对准普通混凝土墙面展开传送门。”', false);
-      return;
-    }
-    if (firstHit.object.userData && firstHit.object.userData.interactType === 'window' && !state.overrideArmed) {
-      playUiBeep(220, 0.12);
-      triggerBroadcast('“操作驳回：单向观察窗禁止展开常规裂隙。请对准混凝土承重墙面。”', false);
       return;
     }
     const cfg = CYCLE_CONFIG[Math.min(state.cycle, CYCLE_CONFIG.length - 1)];
@@ -2114,24 +2136,11 @@
     const meta = WALL_META[dir];
     const rawTangent = wallHit.point.x * meta.tx + wallHit.point.z * meta.tz;
     const maxSpan = ROOM_HALF - PORTAL_W * 0.5 - 0.18;
-    let maxPosSpan = maxSpan;
-    if (dir === 'W') {
-      if (rawTangent > WIN_LOCAL_X - WIN_W * 0.5 - 0.25) {
-        maxPosSpan = WIN_LOCAL_X - WIN_W * 0.5 - PORTAL_W * 0.5 - 0.14;
-      }
-    }
-    let minNegSpan = -maxSpan;
-    if (dir === 'E') {
-      minNegSpan = -(WIN_LOCAL_X - WIN_W * 0.5 - PORTAL_W * 0.5 - 0.14);
-    }
+    const windowSafeSpan = WIN_LOCAL_X - WINDOW_BOOTH_WIDTH * 0.5 - PORTAL_W * 0.5 - 0.14;
+    const maxPosSpan = dir === 'W' ? windowSafeSpan : maxSpan;
+    const minNegSpan = dir === 'E' ? -windowSafeSpan : -maxSpan;
     const exactCenterlineX = Math.max(minNegSpan, Math.min(maxPosSpan, rawTangent));
-    if (state.portal.active) {
-      replaceRoomWall(currentRoom, state.portal.dir, null);
-      if (nextRoom) {
-        worldScene.remove(nextRoom);
-        nextRoom = null;
-      }
-    }
+    clearActivePortal();
     replaceRoomWall(currentRoom, dir, {
       localX: exactCenterlineX,
       w: PORTAL_W,
@@ -2143,9 +2152,6 @@
     const nextCycleIdx = state.cycle + 1;
     nextRoom = createFacilityRoom(nextCycleIdx, meta.opp, exactCenterlineX);
     nextRoom.position.set(meta.nx * NEXT_DIST, 0, meta.nz * NEXT_DIST);
-    if (dir === 'E' && nextRoom.userData.walls.W && nextRoom.userData.walls.W.userData.boothGroup) {
-      nextRoom.userData.walls.W.userData.boothGroup.visible = false;
-    }
     worldScene.add(nextRoom);
     state.portal.active = true;
             state.portal.isSecretWindow = false;
@@ -2160,34 +2166,23 @@
   let lostVoidGroup = null;
   let bedroomGroup = null;
   function openPureWhiteBlastDoor() {
-    if (state.portal.active && nextRoom) {
-      replaceRoomWall(currentRoom, state.portal.dir, null);
-      worldScene.remove(nextRoom);
-      nextRoom = null;
-    }
-    if (secretCrawlspace) {
-      worldScene.remove(secretCrawlspace);
-      secretCrawlspace = null;
-    }
+    clearActivePortal();
     replaceRoomWall(currentRoom, 'S', {
       localX: -4.4,
       w: 1.66,
       h: 2.52,
-      includeTunnel: false,
+      includeTunnel: true,
       includePortalFX: false,
       isOverride: true
     });
     const sWall = currentRoom.userData.walls.S;
     const whiteExitGroup = new THREE.Group();
-    whiteExitGroup.position.set(-4.4, 1.26, -0.02);
-    const whiteBox = new THREE.Mesh(boxGeo(1.74, 2.58, 0.6), basic({ color: 0xffffff, side: THREE.BackSide }));
-    whiteBox.position.z = -0.28;
-    whiteExitGroup.add(whiteBox);
+    whiteExitGroup.position.set(-4.4, 1.26, 0);
     const whiteGlowPlane = new THREE.Mesh(planeGeo(1.68, 2.54), basic({ color: 0xffffff, side: THREE.DoubleSide }));
-    whiteGlowPlane.position.z = 0.01;
+    whiteGlowPlane.position.z = -0.25;
     whiteExitGroup.add(whiteGlowPlane);
     const exitSpillLight = new THREE.PointLight(0xffffff, 1.85, 10.0);
-    exitSpillLight.position.set(0, 0.2, 0.65);
+    exitSpillLight.position.set(0, 0.2, 0.63);
     whiteExitGroup.add(exitSpillLight);
     sWall.add(whiteExitGroup);
     state.portal.active = true;
@@ -2213,14 +2208,14 @@
       audio.master.gain.value = 0;
     }
     if (currentRoom) {
-      worldScene.remove(currentRoom);
+      removeSceneObject(currentRoom);
       currentRoom = null;
     }
     if (nextRoom) {
-      worldScene.remove(nextRoom);
+      removeSceneObject(nextRoom);
       nextRoom = null;
     }
-    if (lostVoidGroup) worldScene.remove(lostVoidGroup);
+    removeSceneObject(lostVoidGroup);
     worldScene.background = new THREE.Color(0x000000);
     worldScene.fog.color.setHex(0x000000);
     worldScene.fog.density = 0.0;
@@ -2460,15 +2455,15 @@
   }
   function enterSunlitBedroom() {
     if (currentRoom) {
-      worldScene.remove(currentRoom);
+      removeSceneObject(currentRoom);
       currentRoom = null;
     }
     if (nextRoom) {
-      worldScene.remove(nextRoom);
+      removeSceneObject(nextRoom);
       nextRoom = null;
     }
     if (secretCrawlspace) {
-      worldScene.remove(secretCrawlspace);
+      removeSceneObject(secretCrawlspace);
       secretCrawlspace = null;
     }
     bedroomGroup = createSunlitBedroom();
@@ -2515,14 +2510,7 @@
     }, 700);
   }
   function openSecretWindowRift() {
-    if (state.portal.active && nextRoom) {
-      replaceRoomWall(currentRoom, state.portal.dir, null);
-      worldScene.remove(nextRoom);
-      nextRoom = null;
-    }
-    if (secretCrawlspace) {
-      worldScene.remove(secretCrawlspace);
-    }
+    clearActivePortal();
     replaceRoomWall(currentRoom, 'W', {
       localX: WIN_LOCAL_X,
       w: 2.0,
@@ -2637,24 +2625,25 @@
       radarPingLabel.style.color = activeRedDots > 0 ? '#ff6b6b' : 'rgba(168, 205, 180, 0.72)';
     }
   }
-  function getAimedInteractable() {
+  function getAimedInteractable(hits) {
     if (!currentRoom) return null;
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-    const hits = raycaster.intersectObjects(currentRoom.userData.interactables, false);
-    if (hits.length > 0 && hits[0].distance < 2.95) {
-      return hits[0].object;
-    }
-    return null;
+    const hit = (hits || getAimedRoomHits()).find(({ object }) =>
+      object.userData.interactType || !object.material.transparent
+    );
+    return hit && hit.distance < 2.95 && hit.object.userData.interactType ? hit.object : null;
   }
-  function clearHeldKeys() {
+  function clearPlayerInput() {
     Object.keys(keys).forEach((k) => { keys[k] = false; });
+    Object.keys(touchMove).forEach((k) => { touchMove[k] = false; });
+    isDraggingLook = false;
+    touchLookId = null;
   }
   function openInspectModal(title, htmlContent, showOverridePanel, useCrtStyle, showPortShortcut) {
     if (state.manualOpen) {
       state.manualOpen = false;
       manualModal.classList.remove('open');
     }
-    clearHeldKeys();
+    clearPlayerInput();
     state.pausedForModal = true;
     if (document.pointerLockElement) {
       try { document.exitPointerLock(); } catch (e) {  }
@@ -2683,8 +2672,7 @@
     state.lockerNoteRead = true;
     state.overrideUnlocked = true;
     if (currentRoom && currentRoom.userData.crtScreen) {
-      currentRoom.userData.crtScreen.material.map = createTerminalScreenTexture(state.cycle, state.overrideArmed, true);
-      currentRoom.userData.crtScreen.material.needsUpdate = true;
+      replaceGeneratedMap(currentRoom.userData.crtScreen.material, createTerminalScreenTexture(state.cycle, state.overrideArmed, true));
     }
     const slipHtml =
       '<div class="skew-note-wrap">' +
@@ -2762,8 +2750,7 @@
     if (kind === 'poster') {
       state.posterPeeled = true;
       if (obj.userData.meshRef) {
-        obj.userData.meshRef.material.map = createPosterTexture(true);
-        obj.userData.meshRef.material.needsUpdate = true;
+        replaceGeneratedMap(obj.userData.meshRef.material, createPosterTexture(true));
       }
       openInspectModal(
         '卷边的企业宣传画背面',
@@ -2843,15 +2830,16 @@
   function enterCycle(newCycle) {
     state.cycle = newCycle;
     state.calibratedThisCycle = false;
-    if (newCycle >= 8) {
+    const totalCycles = CYCLE_CONFIG.length;
+    hudCycle.textContent = `${String(newCycle).padStart(2, '0')}/${String(totalCycles).padStart(2, '0')}`;
+    updateSegmentBar(newCycle);
+    if (newCycle >= totalCycles) {
       beginEndingSequence('RETAINED');
       return;
     }
-    const cfg = CYCLE_CONFIG[Math.min(newCycle, CYCLE_CONFIG.length - 1)];
-    hudCycle.textContent = `0${newCycle}/07`;
+    const cfg = CYCLE_CONFIG[newCycle];
     const corruptPct = Math.min(96, Math.round((newCycle / 7) * 88));
     hudCorrupt.textContent = `${corruptPct}%`;
-    updateSegmentBar(newCycle);
     if (cfg.spawnRoomShadows > 0 || cfg.spawnWindowShadow) {
       state.pendingSpawn.active = true;
       state.pendingSpawn.timer = 1.2;
@@ -2955,7 +2943,7 @@
       }
       return true;
     }
-    const margin = 0.44;
+    const margin = ROOM_COLLISION_MARGIN;
     const p = state.portal;
     if (p.active && p.isPureWhiteExit) {
       const meta = WALL_META.S;
@@ -2970,7 +2958,7 @@
       const planeDist = (nx * meta.nx + nz * meta.nz) - ROOM_HALF;
       const tangentPos = nx * meta.tx + nz * meta.tz;
       const inApertureWidth = Math.abs(tangentPos - p.offset) < (PORTAL_W * 0.5 - 0.30);
-      if (planeDist > -margin - 0.05 && planeDist < WALL_THICK + margin + 0.05) {
+      if (planeDist > PORTAL_ENTRY_DEPTH && planeDist < WALL_THICK + margin + 0.05) {
         return inApertureWidth;
       }
       if (p.isSecretWindow && planeDist >= WALL_THICK) {
@@ -3006,7 +2994,7 @@
   }
   function updatePortalAndTraversal(dt) {
     const p = state.portal;
-    if (!p.active || !currentRoom) return;
+    if (!p.active || !currentRoom || state.endingSeq.active) return;
     p.progress = Math.min(1.0, p.progress + dt * 1.65);
     const wallGroup = currentRoom.userData.walls[p.dir];
     if (wallGroup && wallGroup.userData.portalAnim) {
@@ -3019,23 +3007,16 @@
       anim.shutterR.position.x = halfW * 0.5 + (halfW * 0.5) * ease;
       anim.ringGroup.scale.x = 0.02 + 0.98 * ease;
       anim.centerSeam.visible = p.progress < 0.42;
-      anim.veilMat.uniforms.uTime.value = state.time % 628.3185;
+      anim.veilMat.uniforms.uTime.value = state.time;
     }
     const meta = WALL_META[p.dir];
     const planeDist = (state.px * meta.nx + state.pz * meta.nz) - ROOM_HALF;
-    if (p.dir === 'E' && nextRoom && nextRoom.userData.walls.W && nextRoom.userData.walls.W.userData.boothGroup) {
-      nextRoom.userData.walls.W.userData.boothGroup.visible = (planeDist > WALL_THICK * 0.5);
-    }
-    if (p.dir === 'W' && currentRoom && currentRoom.userData.walls.W && currentRoom.userData.walls.W.userData.boothGroup) {
-      currentRoom.userData.walls.W.userData.boothGroup.visible = (planeDist < WALL_THICK * 0.5);
-    }
     if (p.isPureWhiteExit && planeDist > -0.08) {
       startTrueEscapeTransition();
       return;
     }
     if (!p.crossedHalfway && planeDist > WALL_THICK * 0.5) {
       p.crossedHalfway = true;
-      state.portalCrossings++;
       postUniforms.uPulseFlash.value = 0.40;
       state.extraGlitch = Math.max(state.extraGlitch, 0.14);
       playPortalCrossSound();
@@ -3044,10 +3025,12 @@
       p.crossedHalfway = false;
     }
     if (p.isSecretWindow && planeDist > WALL_THICK + 1.15) {
+      state.portalCrossings++;
       beginEndingSequence('ESCAPED');
       return;
     }
     if (!p.isSecretWindow && nextRoom && planeDist > WALL_THICK + 1.38) {
+      state.portalCrossings++;
       const prevReqWall = CYCLE_CONFIG[Math.min(state.cycle, CYCLE_CONFIG.length - 1)].reqWall;
       if (p.dir !== prevReqWall) {
         state.wrongWallCount++;
@@ -3059,12 +3042,9 @@
       playWallSealSound();
       state.px -= nextRoom.position.x;
       state.pz -= nextRoom.position.z;
-      worldScene.remove(currentRoom);
+      removeSceneObject(currentRoom);
       currentRoom = nextRoom;
       currentRoom.position.set(0, 0, 0);
-      if (currentRoom.userData.walls.W && currentRoom.userData.walls.W.userData.boothGroup) {
-        currentRoom.userData.walls.W.userData.boothGroup.visible = true;
-      }
       nextRoom = null;
       replaceRoomWall(currentRoom, meta.opp, null);
       p.active = false;
@@ -3224,7 +3204,7 @@
       audio.staticGain.gain.value = Math.min(0.14, targetStatic);
       audio.humOsc1.frequency.value = Math.max(44, 60 - state.cycle * 2.0);
     }
-    postUniforms.uTime.value = state.time % 628.3185;
+    postUniforms.uTime.value = state.time;
     postUniforms.uDesat.value = Math.min(0.82, state.curDesat);
     postUniforms.uDistort.value = Math.min(0.38, state.curDistort + state.extraGlitch * 0.4);
     postUniforms.uNoise.value = Math.min(0.26, state.curNoise + state.extraGlitch * 0.25);
@@ -3234,14 +3214,22 @@
       aimPromptEl.classList.remove('visible');
       return;
     }
-    const interactObj = getAimedInteractable();
+    const hits = getAimedRoomHits();
+    const firstHit = hits[0];
+    if (state.overrideArmed && isWindowPortalTarget(firstHit) && firstHit.distance < WINDOW_PORTAL_RANGE) {
+      aimPromptEl.textContent = '[F / 左键] 开孔';
+      aimPromptEl.classList.add('visible');
+      reticleEl.className = 'override-ready';
+      return;
+    }
+    const interactObj = getAimedInteractable(hits);
     if (interactObj) {
       const kind = interactObj.userData.interactType;
       let label = '[E]';
       if (kind === 'terminal') label = '[E] 终端';
       else if (kind === 'calibrator') label = '[E] 校准打卡';
       else if (kind === 'poster') label = '[E] 宣传画';
-      else if (kind === 'window') label = state.overrideArmed ? '[F / 左键] 开孔' : '[E] 观察窗';
+      else if (kind === 'window') label = '[E] 观察窗';
       else if (kind === 'door') label = state.maxPowerArmed ? '[F / 左键] 最大功率发射' : '[E] 防爆门';
       else if (kind === 'lockerDoor') {
         const lg = interactObj.userData.lockerRef;
@@ -3252,20 +3240,12 @@
       else if (kind === 'clock') label = '[E] 挂钟';
       aimPromptEl.textContent = label;
       aimPromptEl.classList.add('visible');
-      reticleEl.className = ((state.overrideArmed && kind === 'window') || (state.maxPowerArmed && kind === 'door')) ? 'override-ready' : '';
+      reticleEl.className = (state.maxPowerArmed && kind === 'door') ? 'override-ready' : '';
       return;
     }
     aimPromptEl.classList.remove('visible');
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-    const hits = raycaster.intersectObjects(currentRoom.children, true);
-    const wallHit = hits.find((h) => h.object.userData && h.object.userData.wallDir && h.distance < 13.0);
-    if (wallHit) {
-      reticleEl.className = (state.overrideArmed && wallHit.object.userData.wallDir === 'W')
-        ? 'override-ready'
-        : 'portal-ready';
-    } else {
-      reticleEl.className = '';
-    }
+    const wallHit = !isWindowPortalTarget(firstHit) && hits.find((h) => h.object.userData.wallDir && h.distance < 13.0);
+    reticleEl.className = wallHit ? 'portal-ready' : '';
   }
   function stepPlayerWalk(dt, baseSpeed, turnSpeed, allowMove, withStepSound) {
     if (keys['KeyQ'] || keys['ArrowLeft']) state.yaw += turnSpeed * dt;
@@ -3344,7 +3324,7 @@
         camera.position.set(state.px, state.py - Math.max(0, p - 0.35) * 0.18, state.pz);
         camera.rotation.set(state.pitch + tPitch, state.yaw + tYaw, Math.sin(state.time * 23) * tremor * 0.6);
         const fadeBlack = Math.max(0, Math.min(1.0, (p - 0.42) / 0.52));
-        postUniforms.uTime.value = state.time % 628.3185;
+        postUniforms.uTime.value = state.time;
         postUniforms.uDistort.value = 0.22 + p * 0.18;
         postUniforms.uNoise.value = 0.15 + p * 0.12;
         postUniforms.uBlackout.value = fadeBlack;
@@ -3357,7 +3337,7 @@
         camera.position.set(state.px, state.py - p * 0.22, state.pz);
         camera.rotation.set(state.pitch + shakePitch, state.yaw + shakeYaw, shakeRoll);
         const fadeBlack = Math.max(0, Math.min(1.0, (p - 0.18) / 0.72));
-        postUniforms.uTime.value = state.time % 628.3185;
+        postUniforms.uTime.value = state.time;
         postUniforms.uDistort.value = 0.22 + shakeEnv * 2.5;
         postUniforms.uBlackout.value = fadeBlack;
         blackoutCurtain.style.opacity = Math.max(0, (p - 0.32) / 0.62).toFixed(3);
@@ -3513,7 +3493,7 @@
       state.time += dt;
       camera.position.set(Math.sin(state.time * 0.32) * 0.4, 1.68, 3.6);
       camera.rotation.set(-0.02, Math.sin(state.time * 0.22) * 0.16, 0);
-      postUniforms.uTime.value = state.time % 628.3185;
+      postUniforms.uTime.value = state.time;
       updateLockerAndBoothAnimations(dt);
       renderMinimap();
     }
@@ -3524,11 +3504,12 @@
   }
   function startNewSession() {
     initAudio();
-    if (currentRoom) worldScene.remove(currentRoom);
-    if (nextRoom) worldScene.remove(nextRoom);
-    if (secretCrawlspace) worldScene.remove(secretCrawlspace);
-    if (lostVoidGroup) worldScene.remove(lostVoidGroup);
-    if (bedroomGroup) worldScene.remove(bedroomGroup);
+    clearPlayerInput();
+    removeSceneObject(currentRoom);
+    removeSceneObject(nextRoom);
+    removeSceneObject(secretCrawlspace);
+    removeSceneObject(lostVoidGroup);
+    removeSceneObject(bedroomGroup);
     nextRoom = null;
     secretCrawlspace = null;
     lostVoidGroup = null;
@@ -3592,8 +3573,7 @@
     state.maxPowerArmed = Boolean(useMaxPower);
     emitterCoreMat.color.setHex(useMaxPower ? 0xffffff : 0xff4275);
     if (currentRoom && currentRoom.userData.crtScreen) {
-      currentRoom.userData.crtScreen.material.map = createTerminalScreenTexture(state.cycle, true, true);
-      currentRoom.userData.crtScreen.material.needsUpdate = true;
+      replaceGeneratedMap(currentRoom.userData.crtScreen.material, createTerminalScreenTexture(state.cycle, true, true));
     }
     closeInspectModal();
     playPortalUnfoldSound(true);
@@ -3720,6 +3700,7 @@
     }
   }, { passive: true });
   canvas.addEventListener('touchend', () => { touchLookId = null; }, { passive: true });
+  canvas.addEventListener('touchcancel', () => { touchLookId = null; }, { passive: true });
   function bindHoldButton(id, field) {
     const el = document.getElementById(id);
     const setVal = (v) => { touchMove[field] = v; };
@@ -3735,7 +3716,15 @@
   $('t-portal').addEventListener('click', tryDeployPortal);
   $('t-interact').addEventListener('click', handleInteract);
   $('t-manual').addEventListener('click', () => toggleManualModal());
+  window.addEventListener('blur', clearPlayerInput);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) clearPlayerInput();
+  });
   window.addEventListener('keydown', (e) => {
+    if (e.repeat) {
+      if (e.code === 'Tab' || e.code === 'Enter' || e.code === 'Space') e.preventDefault();
+      return;
+    }
     if (document.activeElement === termCodeInput) {
       if (e.code === 'Enter') {
         e.preventDefault();
