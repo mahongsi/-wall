@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>墙隙试验 B-09 · W-GATE 模拟恐怖实测档案</title>
+  <title>墙隙试验 B-09 · W-GATE 实测档案</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <style>
   :root { --hud-border: rgba(168, 198, 178, 0.28); --crt-green: #8ce6a2; --crt-amber: #ebb45e; --crt-red: #e84a4a; --crt-cyan: #6edff6; --paper-bg: #dbd4c1; --paper-dark: #c7beaa; --ink-main: #1d201d; --ink-red: #8c2323; --ink-pen: #1e3b6e; }
@@ -303,7 +303,7 @@
   const lambert = (o) => new THREE.MeshLambertMaterial(o);
   const basic = (o) => new THREE.MeshBasicMaterial(o);
   const boxGeo = (w, h, d) => new THREE.BoxGeometry(w, h, d);
-  const planeGeo = (w, h) => new THREE.PlaneGeometry(w, h);
+  const planeGeo = (w, h) => new THREE.PlaneGeometry(w, h, w > 2.1 ? Math.ceil(w) : 1, h > 2.1 ? Math.ceil(h) : 1);
   const cylGeo = (rt, rb, h, s) => new THREE.CylinderGeometry(rt, rb, h, s);
   const mkBox = (w, h, d, mat, x = 0, y = 0, z = 0, p = null) => {
     const m = new THREE.Mesh(boxGeo(w, h, d), mat);
@@ -972,6 +972,70 @@
       fRect(ctx, '#5c615b', 0, 0, w, 2);
       ctx.fillRect(0, 0, 2, h);
     }, 6, 6),
+    ironPassage: makePixelTexture(64, 64, (ctx, w, h) => {
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const brush = ((x * 5 + y * 17) % 9) - 4;
+          const band = (y > 46 && y < 58) ? 38 : 54;
+          const v = band + brush;
+          fRect(ctx, `rgb(${v - 4},${v},${v + 5})`, x, y, 1, 1);
+        }
+      }
+      fRect(ctx, '#161b1e', 0, 0, w, 2);
+      fRect(ctx, '#161b1e', 0, 31, w, 2);
+      fRect(ctx, '#161b1e', 31, 0, 2, h);
+      fRect(ctx, '#7e8e98', 0, 2, w, 1);
+      fRect(ctx, '#7e8e98', 0, 33, w, 1);
+      fRect(ctx, '#73828c', 2, 2, 1, 29);
+      fRect(ctx, '#73828c', 33, 2, 1, 29);
+      fRect(ctx, '#73828c', 2, 33, 1, 29);
+      fRect(ctx, '#73828c', 33, 33, 1, 29);
+      for (let i = -16; i < w + 16; i += 10) {
+        ctx.fillStyle = '#9e7828';
+        ctx.beginPath();
+        ctx.moveTo(i, 50);
+        ctx.lineTo(i + 5, 50);
+        ctx.lineTo(i + 1, 56);
+        ctx.lineTo(i - 4, 56);
+        ctx.closePath();
+        ctx.fill();
+      }
+      for (const ry of [5, 26, 37, 60]) {
+        for (const rx of [5, 15, 26, 37, 47, 58]) {
+          fRect(ctx, '#9fb0ba', rx, ry, 2, 2);
+          fRect(ctx, '#14191c', rx + 1, ry + 1, 2, 2);
+        }
+      }
+    }, 2, 1),
+    ironFloor: makePixelTexture(32, 32, (ctx, w, h) => {
+      fRect(ctx, '#2c3338', 0, 0, w, h);
+      for (let y = 2; y < h; y += 6) {
+        for (let x = (y % 12 === 2 ? 2 : 5); x < w; x += 6) {
+          fRect(ctx, '#5d6a72', x, y, 2, 1);
+          fRect(ctx, '#181d20', x, y + 1, 2, 1);
+        }
+      }
+      fRect(ctx, '#171c1f', 0, 0, w, 1);
+      ctx.fillRect(0, 0, 1, h);
+    }, 3, 3),
+    whiteHalo: makePixelTexture(64, 64, (ctx, w, h) => {
+      ctx.clearRect(0, 0, w, h);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const nx = Math.abs(x - 31.5) / 31.5;
+          const ny = Math.abs(y - 31.5) / 31.5;
+          const ex = Math.max(0, nx - 0.34) / 0.66;
+          const ey = Math.max(0, ny - 0.40) / 0.60;
+          const d = Math.hypot(ex, ey);
+          if (d < 1.0) {
+            const a = Math.pow(1.0 - d, 2.05) * 0.72;
+            if (a > 0.01) {
+              fRect(ctx, `rgba(255, 253, 245, ${a.toFixed(3)})`, x, y, 1, 1);
+            }
+          }
+        }
+      }
+    }),
     rebarCut: makePixelTexture(64, 64, (ctx, w, h) => {
       fRect(ctx, '#464a46', 0, 0, w, h);
       for (let i = 0; i < 280; i++) {
@@ -1266,7 +1330,7 @@
   const camera = new THREE.PerspectiveCamera(72, 16 / 9, 0.08, 46);
   camera.rotation.order = 'YXZ';
   worldScene.add(camera);
-  const flashLight = new THREE.SpotLight(0xf2f8ff, 0.0, 24, Math.PI / 3.3, 0.48, 1.1);
+  const flashLight = new THREE.SpotLight(0xf2f8ff, 0.0, 24, Math.PI / 3.3, 0.48, 1.0);
   flashLight.position.set(0.14, -0.08, 0);
   flashLight.target.position.set(0, -0.04, -6);
   camera.add(flashLight);
@@ -1316,7 +1380,11 @@
       }
     `,
     fragmentShader: `
+      #ifdef GL_FRAGMENT_PRECISION_HIGH
+      precision highp float;
+      #else
       precision mediump float;
+      #endif
       uniform sampler2D tDiffuse;
       uniform vec2 uResolution;
       uniform float uTime;
@@ -1327,16 +1395,19 @@
       uniform float uBlackout;
       varying vec2 vUv;
       float hash(vec2 p) {
-        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+        vec2 q = fract(mod(p, 128.0) * vec2(0.1673, 0.2719));
+        q += dot(q, q.yx + 3.33);
+        return fract((q.x + q.y) * (q.x + 1.37));
       }
       void main() {
+        float t = mod(uTime, 62.831853);
         vec2 uv = vUv;
         vec2 centered = uv * 2.0 - 1.0;
         float r2 = dot(centered, centered);
         uv = (centered * (1.0 + 0.025 * uDistort * r2)) * 0.5 + 0.5;
         float scanY = floor(uv.y * uResolution.y) / uResolution.y;
-        float tapeBar = smoothstep(0.96, 1.0, sin(scanY * 6.5 - uTime * 1.9));
-        float lineJitter = (hash(vec2(scanY, floor(uTime * 16.0))) - 0.5) * 0.008 * uDistort * (0.2 + tapeBar * 1.8);
+        float tapeBar = smoothstep(0.96, 1.0, sin(scanY * 6.5 - mod(uTime * 1.9, 6.283185)));
+        float lineJitter = (hash(vec2(scanY * 64.0, mod(floor(t * 16.0), 64.0))) - 0.5) * 0.008 * uDistort * (0.2 + tapeBar * 1.8);
         uv.x += lineJitter;
         uv = clamp(uv, 0.001, 0.999);
         float chroma = (0.0008 + 0.0055 * uDistort) * (0.25 + r2 * 0.85);
@@ -1352,9 +1423,9 @@
         vec3 coldTape = vec3(luma * 0.97, luma * 1.01, luma * 0.95);
         float redAccent = max(0.0, col.r - max(col.g, col.b) * 1.3);
         col = mix(col, coldTape + vec3(redAccent * 0.45, 0.0, 0.0), clamp(uDesat, 0.0, 0.85));
-        float grain = (hash(pix + fract(uTime * 31.0) * 100.0) - 0.5) * uNoise * 0.55;
+        float grain = (hash(mod(pix, 128.0) + fract(t * 7.3) * 37.0) - 0.5) * uNoise * 0.55;
         col += vec3(grain);
-        float scanline = 0.95 + 0.05 * sin(vUv.y * uResolution.y * 3.14159);
+        float scanline = 0.95 + 0.05 * sin(mod(vUv.y * uResolution.y, 2.0) * 3.14159);
         col *= scanline;
         float vig = 1.0 - r2 * (0.14 + 0.14 * uDistort + uBlackout * 0.95);
         col *= clamp(vig, 0.0, 1.0);
@@ -1364,7 +1435,7 @@
       }
     `
   });
-  const postQuad = new THREE.Mesh(planeGeo(2, 2), postMaterial);
+  const postQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMaterial);
   postScene.add(postQuad);
   function handleResize() {
     const w = Math.max(320, wrapEl.clientWidth);
@@ -1401,14 +1472,18 @@
         }
       `,
       fragmentShader: `
+        #ifdef GL_FRAGMENT_PRECISION_HIGH
+        precision highp float;
+        #else
         precision mediump float;
+        #endif
         uniform float uTime;
         uniform vec3 uColor;
         varying vec2 vUv;
         void main() {
           vec2 p = floor(vUv * vec2(32.0, 44.0)) / vec2(32.0, 44.0) - 0.5;
           float border = max(abs(p.x) * 2.0, abs(p.y) * 2.0);
-          float ring = sin(border * 24.0 - uTime * 7.0) * 0.5 + 0.5;
+          float ring = sin(border * 24.0 - mod(uTime * 7.0, 6.283185)) * 0.5 + 0.5;
           float edgeGlow = smoothstep(0.66, 0.99, border);
           float alpha = 0.06 + edgeGlow * 0.58 + ring * 0.06;
           vec3 c = mix(uColor * 0.8, vec3(1.0), edgeGlow * 0.55);
@@ -1426,10 +1501,9 @@
     const u1 = ((x1 + ROOM_HALF) / (ROOM_HALF * 2)) * 4.0;
     const v0 = (y0 / ROOM_H) * 2.0;
     const v1 = (y1 / ROOM_H) * 2.0;
-    uvAttr.setXY(0, u0, v1);
-    uvAttr.setXY(1, u1, v1);
-    uvAttr.setXY(2, u0, v0);
-    uvAttr.setXY(3, u1, v0);
+    for (let k = 0; k < uvAttr.count; k++) {
+      uvAttr.setXY(k, u0 + uvAttr.getX(k) * (u1 - u0), v0 + uvAttr.getY(k) * (v1 - v0));
+    }
     uvAttr.needsUpdate = true;
     const m = new THREE.Mesh(geom, wallMat);
     m.position.set((x0 + x1) * 0.5, (y0 + y1) * 0.5, 0);
@@ -1508,23 +1582,37 @@
       const spanW = holeRight - holeLeft;
       const centerX = (holeLeft + holeRight) * 0.5;
       if (holeSpec.includeTunnel) {
-        const rebarMat = lambert({ map: textures.rebarCut, side: THREE.DoubleSide });
-        const jambL = new THREE.Mesh(planeGeo(WALL_THICK, hh), rebarMat);
+        const tunnelMat = lambert({
+          map: holeSpec.useIronTunnel ? textures.ironPassage : textures.rebarCut,
+          color: holeSpec.useIronTunnel ? 0xb8c6cf : 0xffffff,
+          side: THREE.DoubleSide
+        });
+        const jambL = new THREE.Mesh(planeGeo(WALL_THICK, hh), tunnelMat);
         jambL.rotation.y = Math.PI / 2;
         jambL.position.set(holeLeft, hh / 2, -WALL_THICK / 2);
         group.add(jambL);
-        const jambR = new THREE.Mesh(planeGeo(WALL_THICK, hh), rebarMat);
+        const jambR = new THREE.Mesh(planeGeo(WALL_THICK, hh), tunnelMat);
         jambR.rotation.y = -Math.PI / 2;
         jambR.position.set(holeRight, hh / 2, -WALL_THICK / 2);
         group.add(jambR);
-        const soffit = new THREE.Mesh(planeGeo(spanW, WALL_THICK), rebarMat);
+        const soffit = new THREE.Mesh(planeGeo(spanW, WALL_THICK), tunnelMat);
         soffit.rotation.x = Math.PI / 2;
         soffit.position.set(centerX, hh, -WALL_THICK / 2);
         group.add(soffit);
-        const floorStrip = new THREE.Mesh(planeGeo(spanW, WALL_THICK + 0.06), lambert({ map: textures.floor }));
+        const floorStrip = new THREE.Mesh(
+          planeGeo(spanW, WALL_THICK + 0.08),
+          lambert({ map: holeSpec.useIronTunnel ? textures.ironFloor : textures.floor })
+        );
         floorStrip.rotation.x = -Math.PI / 2;
-        floorStrip.position.set(centerX, 0.002, -WALL_THICK / 2);
+        floorStrip.position.set(centerX, 0.004, -WALL_THICK / 2);
         group.add(floorStrip);
+        if (holeSpec.useIronTunnel) {
+          const trimMat = lambert({ map: textures.ironPassage, color: 0x9aa8b2 });
+          mkBox(0.15, hh + 0.16, 0.14, trimMat, holeLeft - 0.055, hh / 2, -0.01, group);
+          mkBox(0.15, hh + 0.16, 0.14, trimMat, holeRight + 0.055, hh / 2, -0.01, group);
+          mkBox(spanW + 0.36, 0.15, 0.14, trimMat, centerX, hh + 0.065, -0.01, group);
+          mkBox(spanW + 0.28, 0.04, 0.18, lambert({ map: textures.ironFloor }), centerX, 0.02, 0.01, group);
+        }
       }
       if (holeSpec.includePortalFX) {
         const fxGroup = new THREE.Group();
@@ -1763,12 +1851,14 @@
       color: wallTint,
       side: THREE.DoubleSide
     });
-    const floor = new THREE.Mesh(planeGeo(ROOM_HALF * 2, ROOM_HALF * 2), lambert({ map: textures.floor }));
+    const floor = new THREE.Mesh(planeGeo(ROOM_HALF * 2, ROOM_HALF * 2), lambert({ map: textures.floor, side: THREE.DoubleSide }));
     floor.rotation.x = -Math.PI / 2;
+    floor.frustumCulled = false;
     root.add(floor);
-    const ceiling = new THREE.Mesh(planeGeo(ROOM_HALF * 2, ROOM_HALF * 2), lambert({ map: textures.ceiling }));
+    const ceiling = new THREE.Mesh(planeGeo(ROOM_HALF * 2, ROOM_HALF * 2), lambert({ map: textures.ceiling, side: THREE.DoubleSide }));
     ceiling.rotation.x = Math.PI / 2;
     ceiling.position.y = ROOM_H;
+    ceiling.frustumCulled = false;
     root.add(ceiling);
     const walls = {};
     ['N', 'S', 'E', 'W'].forEach((dir) => {
@@ -1900,7 +1990,7 @@
       cycleIdx >= 6 ? 0xffd5c8 : 0xf2fff6,
       0.42 + 0.65 * lb,
       20,
-      1.15
+      1.0
     );
     mainPoint.position.set(0, 3.4, 0);
     root.add(mainPoint);
@@ -2172,17 +2262,37 @@
       w: 1.66,
       h: 2.52,
       includeTunnel: true,
+      useIronTunnel: true,
       includePortalFX: false,
       isOverride: true
     });
     const sWall = currentRoom.userData.walls.S;
     const whiteExitGroup = new THREE.Group();
     whiteExitGroup.position.set(-4.4, 1.26, 0);
-    const whiteGlowPlane = new THREE.Mesh(planeGeo(1.68, 2.54), basic({ color: 0xffffff, side: THREE.DoubleSide }));
-    whiteGlowPlane.position.z = -0.25;
+    const whiteGlowPlane = new THREE.Mesh(planeGeo(1.70, 2.56), basic({ color: 0xffffff, side: THREE.DoubleSide }));
+    whiteGlowPlane.position.z = -0.82;
     whiteExitGroup.add(whiteGlowPlane);
-    const exitSpillLight = new THREE.PointLight(0xffffff, 1.85, 10.0);
-    exitSpillLight.position.set(0, 0.2, 0.63);
+    const makeHalo = (w, h, op, zPos, rx = 0, yPos = 0) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), basic({
+        map: textures.whiteHalo,
+        transparent: true,
+        opacity: op,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending
+      }));
+      m.position.set(0, yPos, zPos);
+      m.rotation.x = rx;
+      m.renderOrder = 4;
+      m.raycast = () => {};
+      whiteExitGroup.add(m);
+    };
+    makeHalo(2.45, 3.15, 0.68, -0.70);
+    makeHalo(4.50, 4.45, 0.68, 0.025);
+    makeHalo(2.90, 3.45, 0.24, 0.09);
+    makeHalo(3.40, 3.30, 0.52, 1.30, -Math.PI / 2, -1.252);
+    const exitSpillLight = new THREE.PointLight(0xfffdf6, 1.75, 11.5, 1.0);
+    exitSpillLight.position.set(0, 0.15, 0.55);
     whiteExitGroup.add(exitSpillLight);
     sWall.add(whiteExitGroup);
     state.portal.active = true;
@@ -3007,11 +3117,11 @@
       anim.shutterR.position.x = halfW * 0.5 + (halfW * 0.5) * ease;
       anim.ringGroup.scale.x = 0.02 + 0.98 * ease;
       anim.centerSeam.visible = p.progress < 0.42;
-      anim.veilMat.uniforms.uTime.value = state.time;
+      anim.veilMat.uniforms.uTime.value = state.time % 628.3185;
     }
     const meta = WALL_META[p.dir];
     const planeDist = (state.px * meta.nx + state.pz * meta.nz) - ROOM_HALF;
-    if (p.isPureWhiteExit && planeDist > -0.08) {
+    if (p.isPureWhiteExit && planeDist > 0.18) {
       startTrueEscapeTransition();
       return;
     }
@@ -3204,7 +3314,7 @@
       audio.staticGain.gain.value = Math.min(0.14, targetStatic);
       audio.humOsc1.frequency.value = Math.max(44, 60 - state.cycle * 2.0);
     }
-    postUniforms.uTime.value = state.time;
+    postUniforms.uTime.value = state.time % 628.3185;
     postUniforms.uDesat.value = Math.min(0.82, state.curDesat);
     postUniforms.uDistort.value = Math.min(0.38, state.curDistort + state.extraGlitch * 0.4);
     postUniforms.uNoise.value = Math.min(0.26, state.curNoise + state.extraGlitch * 0.25);
@@ -3324,7 +3434,7 @@
         camera.position.set(state.px, state.py - Math.max(0, p - 0.35) * 0.18, state.pz);
         camera.rotation.set(state.pitch + tPitch, state.yaw + tYaw, Math.sin(state.time * 23) * tremor * 0.6);
         const fadeBlack = Math.max(0, Math.min(1.0, (p - 0.42) / 0.52));
-        postUniforms.uTime.value = state.time;
+        postUniforms.uTime.value = state.time % 628.3185;
         postUniforms.uDistort.value = 0.22 + p * 0.18;
         postUniforms.uNoise.value = 0.15 + p * 0.12;
         postUniforms.uBlackout.value = fadeBlack;
@@ -3337,7 +3447,7 @@
         camera.position.set(state.px, state.py - p * 0.22, state.pz);
         camera.rotation.set(state.pitch + shakePitch, state.yaw + shakeYaw, shakeRoll);
         const fadeBlack = Math.max(0, Math.min(1.0, (p - 0.18) / 0.72));
-        postUniforms.uTime.value = state.time;
+        postUniforms.uTime.value = state.time % 628.3185;
         postUniforms.uDistort.value = 0.22 + shakeEnv * 2.5;
         postUniforms.uBlackout.value = fadeBlack;
         blackoutCurtain.style.opacity = Math.max(0, (p - 0.32) / 0.62).toFixed(3);
@@ -3493,7 +3603,7 @@
       state.time += dt;
       camera.position.set(Math.sin(state.time * 0.32) * 0.4, 1.68, 3.6);
       camera.rotation.set(-0.02, Math.sin(state.time * 0.22) * 0.16, 0);
-      postUniforms.uTime.value = state.time;
+      postUniforms.uTime.value = state.time % 628.3185;
       updateLockerAndBoothAnimations(dt);
       renderMinimap();
     }
